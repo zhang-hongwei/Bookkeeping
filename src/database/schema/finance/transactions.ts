@@ -13,8 +13,8 @@ import { financeAccounts } from './accounts';
 export const TRANSACTION_TYPES = ['income', 'expense', 'transfer'] as const;
 export type TransactionType = (typeof TRANSACTION_TYPES)[number];
 
-/** 交易来源 */
-export const TRANSACTION_SOURCES = ['manual', 'import', 'nl'] as const;
+/** 交易来源（Phase 1 追加 ocr：截图 OCR 记账） */
+export const TRANSACTION_SOURCES = ['manual', 'import', 'nl', 'ocr'] as const;
 export type TransactionSource = (typeof TRANSACTION_SOURCES)[number];
 
 /** 分录方向（复式记账） */

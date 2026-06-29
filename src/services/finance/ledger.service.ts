@@ -30,9 +30,27 @@ import {
   type EntryInput,
 } from './balance.service';
 import { fromCents, toCents } from './money';
+import { refreshSince } from './net-worth.service';
 
 // 复式不变式错误统一从 ledger.service 再导出，便于 API 层一处导入。
 export { LedgerInvariantError } from './balance.service';
+
+/** 把 Date 转 YYYY-MM-DD（UTC 切片）。 */
+function dayKey(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * best-effort 净资产快照重算：记账/改/删事务提交后刷新 [occurredAt..today] 曲线。
+ * 失败仅记日志、不阻断主记账操作（账目正确性优先于曲线刷新）。
+ */
+async function refreshSnapshots(userId: string, occurredAt: Date): Promise<void> {
+  try {
+    await refreshSince(userId, dayKey(occurredAt));
+  } catch (err) {
+    console.error('[ledger] snapshot refresh failed:', err);
+  }
+}
 
 const SYSTEM_USER_ID = '__system__';
 
@@ -172,7 +190,7 @@ export async function createTransaction(
   const entryInputs = buildEntries(input, equity);
   assertBalanced(entryInputs);
 
-  return db.transaction(async (tx) => {
+  const __createResult = await db.transaction(async (tx) => {
     const [txn] = await tx
       .insert(transactions)
       .values({
@@ -223,13 +241,16 @@ export async function createTransaction(
 
     return { transaction: txn! };
   });
+  await refreshSnapshots(input.userId, __createResult.transaction.occurredAt);
+  return __createResult;
 }
 
 export async function deleteTransaction(
   userId: string,
   transactionId: string,
 ): Promise<void> {
-  return db.transaction(async (tx) => {
+  let __occurredAt: Date | null = null;
+  await db.transaction(async (tx) => {
     const [txn] = await tx
       .select()
       .from(transactions)
@@ -237,6 +258,7 @@ export async function deleteTransaction(
       .limit(1);
     if (!txn) throw new LedgerInvariantError('交易不存在');
     if (txn.userId !== userId) throw new LedgerInvariantError('无权操作该交易');
+    __occurredAt = txn.occurredAt;
 
     const equity = await ensureSystemEquityAccounts();
     const oldEntries: EntryInput[] = (
@@ -271,6 +293,7 @@ export async function deleteTransaction(
     // cascade 删除关联 entries
     await tx.delete(transactions).where(eq(transactions.id, transactionId));
   });
+  if (__occurredAt) await refreshSnapshots(userId, __occurredAt);
 }
 
 export async function editTransaction(
@@ -284,7 +307,7 @@ export async function editTransaction(
   const entryInputs = buildEntries(input, equity);
   assertBalanced(entryInputs);
 
-  return db.transaction(async (tx) => {
+  const __editResult = await db.transaction(async (tx) => {
     const [txn] = await tx
       .select()
       .from(transactions)
@@ -374,6 +397,8 @@ export async function editTransaction(
       .returning();
     return { transaction: updated! };
   });
+  await refreshSnapshots(userId, __editResult.transaction.occurredAt);
+  return __editResult;
 }
 
 /** PATCH 输入：所有字段可选（部分更新）。 */

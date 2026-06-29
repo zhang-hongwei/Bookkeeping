@@ -9,6 +9,9 @@ import { financeAccounts } from './accounts';
 import { categories } from './categories';
 import { transactions, entries } from './transactions';
 import { billImports, billImportRows } from './bill-imports';
+import { netWorthSnapshots } from './net-worth-snapshots';
+import { ruleFindings } from './rule-findings';
+import { aiReports } from './ai-reports';
 
 export const financeAccountsRelations = relations(financeAccounts, ({ many }) => ({
   entries: many(entries),
@@ -53,3 +56,18 @@ export const billImportRowsRelations = relations(billImportRows, ({ one }) => ({
     references: [billImports.id],
   }),
 }));
+
+// Phase 1 关系（users 为纯 text userId，不在此建模；findings ↔ reports 通过 report_id）
+export const ruleFindingsRelations = relations(ruleFindings, ({ one }) => ({
+  report: one(aiReports, {
+    fields: [ruleFindings.reportId],
+    references: [aiReports.id],
+  }),
+}));
+
+export const aiReportsRelations = relations(aiReports, ({ many }) => ({
+  findings: many(ruleFindings),
+}));
+
+// netWorthSnapshots：按 (userId, date) 定位，无外键关系，留空占位以保证 barrel 一致。
+export const netWorthSnapshotsRelations = relations(netWorthSnapshots, () => ({}));

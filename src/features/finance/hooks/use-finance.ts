@@ -175,3 +175,85 @@ export function useParseNl() {
     mutationFn: (text: string) => financeApi.parseNl(text),
   });
 }
+
+/** 净资产仪表盘（总资产/总负债/净资产 + 今日变化）。 */
+export function useNetWorth() {
+  return useQuery({
+    queryKey: ['finance', 'net-worth'],
+    queryFn: () => financeApi.getNetWorth(),
+  });
+}
+
+/** 净资产曲线（区间快照）。 */
+export function useNetWorthSnapshots(from: string, to: string, enabled = true) {
+  return useQuery({
+    queryKey: ['finance', 'net-worth', 'snapshots', from, to],
+    queryFn: () => financeApi.getNetWorthSnapshots(from, to),
+    enabled,
+  });
+}
+
+/** 截图 OCR → 候选交易（不落库）。 */
+export function useParseOcr() {
+  return useMutation({
+    mutationFn: (file: File) => financeApi.parseOcr(file),
+  });
+}
+
+/** 规则结论（即时确定性）。 */
+export function useFindings(periodStart: string, periodEnd: string, enabled = true) {
+  return useQuery({
+    queryKey: ['finance', 'findings', periodStart, periodEnd],
+    queryFn: () => financeApi.getFindings(periodStart, periodEnd),
+    enabled,
+  });
+}
+
+/** 健康分 + 维度。 */
+export function useHealthScore(periodStart: string, periodEnd: string, enabled = true) {
+  return useQuery({
+    queryKey: ['finance', 'health-score', periodStart, periodEnd],
+    queryFn: () => financeApi.getHealthScore(periodStart, periodEnd),
+    enabled,
+  });
+}
+
+/** 生成月报。 */
+export function useGenerateReport() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ periodStart, periodEnd }: { periodStart: string; periodEnd: string }) =>
+      financeApi.generateMonthly(periodStart, periodEnd),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['finance', 'reports'] });
+    },
+  });
+}
+
+/** 重新生成月报。 */
+export function useRegenerateReport() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => financeApi.regenerateReport(id),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['finance', 'reports'] });
+    },
+  });
+}
+
+/** 报告列表。 */
+export function useReports(periodStart?: string, periodEnd?: string) {
+  return useQuery({
+    queryKey: ['finance', 'reports', periodStart ?? 'all', periodEnd ?? 'all'],
+    queryFn: () => financeApi.listReports(periodStart, periodEnd),
+  });
+}
+
+/** 报告详情（含 stale 检测）。 */
+export function useReport(id: string | null) {
+  return useQuery({
+    queryKey: ['finance', 'report', id],
+    queryFn: () => financeApi.getReport(id!),
+    enabled: Boolean(id),
+  });
+}

@@ -124,6 +124,96 @@ export interface NlRecordResultDTO {
   reason?: string;
 }
 
+export interface NetWorthDTO {
+  date: string;
+  totalAssets: string;
+  totalLiabilities: string;
+  netWorth: string;
+  todayChange: string;
+  breakdown: Record<string, string>;
+}
+
+export interface NetWorthSnapshotDTO {
+  date: string;
+  totalAssets: string;
+  totalLiabilities: string;
+  netWorth: string;
+  breakdown: Record<string, string>;
+}
+
+export interface OcrCandidateDTO {
+  type: TransactionType;
+  amount: string;
+  counterparty?: string;
+  note?: string;
+  occurredAt?: string;
+  categoryId?: string;
+  accountId?: string;
+}
+
+export interface OcrRecordResultDTO {
+  candidates: OcrCandidateDTO[];
+  confidence: number;
+  requireManualConfirm: boolean;
+  reason?: string;
+}
+
+export interface FindingDTO {
+  metric: string;
+  value: string | null;
+  verdict: string;
+  riskLevel: string;
+}
+
+export interface DimensionScoreDTO {
+  value: string | null;
+  score?: number | null;
+  reason?: string;
+}
+
+export interface HealthScoreDTO {
+  total: string;
+  dimensions: {
+    savingsRate: DimensionScoreDTO;
+    debtRatio: DimensionScoreDTO;
+    emergency: DimensionScoreDTO;
+    investmentRate: DimensionScoreDTO;
+    cashflow: DimensionScoreDTO;
+  };
+}
+
+export interface ReportViewDTO {
+  id: string;
+  type: string;
+  periodStart: string;
+  periodEnd: string;
+  score: string | null;
+  dimensions: Record<string, DimensionScoreDTO> | null;
+  status: string;
+  stale: boolean;
+  content: string | null;
+  contentRef: string | null;
+  generatedAt: string;
+}
+
+export interface ReportMetaDTO {
+  id: string;
+  type: string;
+  periodStart: string;
+  periodEnd: string;
+  score: string | null;
+  status: string;
+  generatedAt: string;
+}
+
+export interface GenerateReportResult {
+  reportId: string;
+  status: string;
+  score: string;
+  stale: boolean;
+  contentRef: string | null;
+}
+
 export interface CreateTransactionPayload {
   type: TransactionType;
   amount: string;
@@ -235,4 +325,40 @@ export const financeApi = {
       method: 'POST',
       body: JSON.stringify({ text }),
     }),
+
+  getNetWorth: () => http<NetWorthDTO>(`${BASE}/net-worth`),
+  getNetWorthSnapshots: (from: string, to: string) =>
+    http<{ items: NetWorthSnapshotDTO[] }>(
+      `${BASE}/net-worth/snapshots?from=${from}&to=${to}`,
+    ),
+
+  parseOcr: async (file: File): Promise<OcrRecordResultDTO> => {
+    const fd = new FormData();
+    fd.append('image', file);
+    const res = await fetch(`${BASE}/ocr-record`, { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.error ?? `请求失败 (${res.status})`);
+    return data as OcrRecordResultDTO;
+  },
+
+  getFindings: (periodStart: string, periodEnd: string) =>
+    http<{ findings: FindingDTO[] }>(
+      `${BASE}/findings?periodStart=${periodStart}&periodEnd=${periodEnd}`,
+    ),
+  getHealthScore: (periodStart: string, periodEnd: string) =>
+    http<HealthScoreDTO>(
+      `${BASE}/health-score?periodStart=${periodStart}&periodEnd=${periodEnd}`,
+    ),
+  generateMonthly: (periodStart: string, periodEnd: string) =>
+    http<GenerateReportResult>(`${BASE}/reports/monthly`, {
+      method: 'POST',
+      body: JSON.stringify({ periodStart, periodEnd }),
+    }),
+  getReport: (id: string) => http<ReportViewDTO>(`${BASE}/reports/${id}`),
+  listReports: (periodStart?: string, periodEnd?: string) => {
+    const qs = periodStart && periodEnd ? `?periodStart=${periodStart}&periodEnd=${periodEnd}` : '';
+    return http<{ items: ReportMetaDTO[] }>(`${BASE}/reports${qs}`);
+  },
+  regenerateReport: (id: string) =>
+    http<GenerateReportResult>(`${BASE}/reports/${id}/regenerate`, { method: 'POST' }),
 };

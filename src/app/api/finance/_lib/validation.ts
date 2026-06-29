@@ -27,7 +27,7 @@ export const createTransactionSchema = z
     categoryId: z.string().nullable().optional(),
     occurredAt: z.string().optional(),
     note: z.string().max(500).optional(),
-    source: z.enum(['manual', 'import', 'nl']).optional(),
+    source: z.enum(['manual', 'import', 'nl', 'ocr']).optional(),
   })
   .superRefine((val, ctx) => {
     if (val.type === 'transfer') {

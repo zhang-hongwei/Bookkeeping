@@ -4,4 +4,7 @@ export * from './accounts';
 export * from './categories';
 export * from './transactions';
 export * from './bill-imports';
+export * from './net-worth-snapshots';
+export * from './rule-findings';
+export * from './ai-reports';
 export * from './relations';

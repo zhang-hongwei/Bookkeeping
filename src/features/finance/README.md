@@ -70,3 +70,25 @@ node --env-file=.env scripts/init-finance.mjs   # 建 finance_* 表 + 种子权�
 - finance API 使用 **Supabase Auth** 取会话（`requireUserId` → `createSupabaseServerClient` + `auth.getUser()`）。
   `src/middleware.ts` 已用 `updateSession` 刷新会话 cookie，并将 `/finance` 列入受保护路径（未登录跳 `/signin`）。
 - 自然语言记账依赖 `OPENAI_BASE_URL` / `OPENAI_AUTH_TOKEN` / `OPENAI_MODEL`；未配置时返回 `candidate:null` + reason。
+
+
+## Phase 1 增量（002 净资产闭环 + 首份 AI 报告）
+
+在 Phase 0 复式账本之上跑通「数据进 → 净资产 → AI 报告」核心闭环：
+
+- **`net_worth_snapshots`**：每用户每日净资产快照（曲线数据源，`UNIQUE(user_id,date)`）。
+  净资产由 `accounts.balance` 严格推导（资产 − 信用欠款）；记账/改/删后重算 `[occurredAt..today]`
+  区间（挂 `ledger.service`），首次启用历史回填；`verifySnapshots` 自愈（SC-001）。
+- **规则引擎 `rules-engine.service`**（纯函数、零幻觉）：
+  - `computeFindings`：income/expense/surplus/savings_rate/debt_ratio/emergency_months（转账不计收支）。
+  - `computeHealthScore`：储蓄25/负债25/应急20/投资15/现金流15 加权 0–100；投资率 Phase1 缺失降权重分配、不编造。
+- **月报 `report.service`**：findings（事实层）→ LLM 表达（禁算数字）→ markdown 正文；
+  LLM 失败/未配置 → 降级 findings 模板（`status=degraded`，数字仍来自 findings，SC-004）；
+  `sourceDataHash` 周期数据指纹，查看时比对 → `stale`（FR-010）。
+- **OCR 记账 `ocr-record.service`**：多模态识别支付截图 → 候选（多笔/低置信 `requireManualConfirm`），
+  确认落库 `source=ocr`（SC-005）。
+- **API/UI**：`/net-worth`、`/net-worth/snapshots`、`/findings`、`/health-score`、`/reports[/monthly|/:id/regenerate]`、`/ocr-record`；
+  UI 含净资产仪表盘+曲线、健康分雷达、月报视图、截图记账。
+
+**零幻觉红线**：报告中所有具体数字结论只来自规则引擎 findings，LLM 仅表达、失败降级模板。
+**性能（T046）**：仪表盘首屏读 `computeNetWorthLive`（balance 推导，O(1)）+ 物化快照曲线，非全量聚合。

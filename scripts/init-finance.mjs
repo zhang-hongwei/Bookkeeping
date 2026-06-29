@@ -113,6 +113,54 @@ const DDL = [
    )`,
   `CREATE INDEX IF NOT EXISTS "finance_bill_import_rows_user_hash_idx"
      ON "finance_bill_import_rows" ("user_id", "row_hash")`,
+
+  // ===== Phase 1：净资产闭环 + AI 报告 =====
+  `CREATE TABLE IF NOT EXISTS "finance_net_worth_snapshots" (
+     "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+     "user_id" text NOT NULL,
+     "date" date NOT NULL,
+     "total_assets" numeric(18,2) NOT NULL DEFAULT 0,
+     "total_liabilities" numeric(18,2) NOT NULL DEFAULT 0,
+     "net_worth" numeric(18,2) NOT NULL DEFAULT 0,
+     "breakdown" jsonb NOT NULL DEFAULT '{}'::jsonb,
+     "created_at" timestamp NOT NULL DEFAULT now(),
+     "updated_at" timestamp NOT NULL DEFAULT now()
+   )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "finance_net_worth_user_date_unique"
+     ON "finance_net_worth_snapshots" ("user_id", "date")`,
+  // ai_reports 须先于 rule_findings（FK 引用）
+  `CREATE TABLE IF NOT EXISTS "finance_ai_reports" (
+     "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+     "user_id" text NOT NULL,
+     "type" varchar(16) NOT NULL DEFAULT 'monthly',
+     "period_start" date NOT NULL,
+     "period_end" date NOT NULL,
+     "score" numeric(5,2),
+     "dimensions" jsonb,
+     "status" varchar(16) NOT NULL DEFAULT 'draft',
+     "source_data_hash" text NOT NULL,
+     "content" text,
+     "content_ref" text,
+     "approved_by" text,
+     "generated_at" timestamp NOT NULL DEFAULT now(),
+     "created_at" timestamp NOT NULL DEFAULT now(),
+     "updated_at" timestamp NOT NULL DEFAULT now()
+   )`,
+  `CREATE TABLE IF NOT EXISTS "finance_rule_findings" (
+     "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+     "user_id" text NOT NULL,
+     "period_kind" varchar(16) NOT NULL DEFAULT 'month',
+     "period_start" date NOT NULL,
+     "period_end" date NOT NULL,
+     "metric" varchar(32) NOT NULL,
+     "value" numeric(18,4),
+     "verdict" text,
+     "risk_level" varchar(8) NOT NULL DEFAULT 'none',
+     "report_id" uuid REFERENCES "finance_ai_reports"("id") ON DELETE SET NULL,
+     "created_at" timestamp NOT NULL DEFAULT now()
+   )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "finance_findings_period_metric_unique"
+     ON "finance_rule_findings" ("user_id", "period_start", "period_end", "metric")`,
 ];
 
 async function main() {

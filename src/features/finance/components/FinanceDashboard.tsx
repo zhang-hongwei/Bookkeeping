@@ -14,6 +14,10 @@ import { TransactionForm } from './TransactionForm';
 import { TransactionList } from './TransactionList';
 import { ImportFlow } from './ImportFlow';
 import { NlRecordInput } from './NlRecordInput';
+import { OcrRecordInput } from './OcrRecordInput';
+import { NetWorthDashboard } from './NetWorthDashboard';
+import { HealthScorePanel } from './HealthScorePanel';
+import { MonthlyReport } from './MonthlyReport';
 import { CreateAccountDialog } from './CreateAccountDialog';
 
 export function FinanceDashboard() {
@@ -31,6 +35,9 @@ export function FinanceDashboard() {
       </Stack>
 
       <Grid container spacing={3}>
+        <Grid size={{ xs: 12 }}>
+          <NetWorthDashboard />
+        </Grid>
         <Grid size={{ xs: 12, md: 4 }}>
           <AccountManager />
         </Grid>
@@ -41,6 +48,12 @@ export function FinanceDashboard() {
                 一句话记账
               </Typography>
               <NlRecordInput />
+            </Box>
+            <Box sx={{ p: 2, border: 1, borderColor: 'divider', borderRadius: 2 }}>
+              <Typography variant="subtitle1" sx={{ mb: 1.5 }}>
+                截图记账
+              </Typography>
+              <OcrRecordInput />
             </Box>
             <Box sx={{ p: 2, border: 1, borderColor: 'divider', borderRadius: 2 }}>
               <Typography variant="h6" sx={{ mb: 2 }}>
@@ -63,6 +76,15 @@ export function FinanceDashboard() {
         </Typography>
         <ImportFlow />
       </Box>
+
+      <Grid container spacing={3} sx={{ mt: 1 }}>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <HealthScorePanel />
+        </Grid>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <MonthlyReport />
+        </Grid>
+      </Grid>
     </Box>
   );
 }
