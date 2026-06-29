@@ -518,46 +518,6 @@
       }
     },
 
-    "clerk-auth": {
-      "type": "integration",
-      "priority": "high",
-      "autoActivate": false,
-      "description": "Clerk 认证和用户管理集成最佳实践",
-      "promptTriggers": {
-        "keywords": [
-          "clerk",
-          "clerk auth",
-          "authentication",
-          "sign in",
-          "sign up",
-          "user management",
-          "middleware protection"
-        ],
-        "intentPatterns": [
-          "(setup|configure).*?clerk",
-          "(protect|secure).*?route",
-          "(manage|handle).*?users",
-          "clerk.*?middleware"
-        ]
-      },
-      "fileTriggers": {
-        "pathPatterns": [
-          "middleware.ts",
-          "app/**/sign-in/**/*.tsx",
-          "app/**/sign-up/**/*.tsx"
-        ],
-        "contentPatterns": [
-          "@clerk/nextjs",
-          "clerkMiddleware",
-          "auth\\(\\)",
-          "currentUser",
-          "useUser",
-          "SignIn",
-          "SignUp"
-        ]
-      }
-    },
-
     "file-storage": {
       "type": "integration",
       "priority": "high",

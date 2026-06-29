@@ -62,12 +62,11 @@ Successfully migrated 4 Anthropic reference skills from `docs/skills` to `.claud
 9. skill-developer
 10. nextjs
 
-### New Integration Skills (9)
+### New Integration Skills (8)
 11. supabase-integration
 12. stripe-integration
-13. clerk-auth
-14. echarts-integration
-15. file-storage
+13. echarts-integration
+14. file-storage
 16. email-service
 17. paddle-integration
 18. lemonsqueezy-integration

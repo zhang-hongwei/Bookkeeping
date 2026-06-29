@@ -1,8 +1,12 @@
 #!/bin/bash
-set -e
+# 注意：不使用 `set -e` —— tsc 返回非零（项目有既有错误）时不能让脚本提前退出，
+# 必须走到下方的「按修改文件过滤」逻辑再决定是否阻断。
 
 # TSC Hook with Error Caching and Auto-resolver Integration
 # Adapted for Next.js monorepo from aaa project
+#
+# 【放宽版】仅检查「本次修改的文件」是否引入新的 TypeScript 错误，
+# 忽略项目中既有的、与本次改动无关的错误（避免历史负债阻断每次 Write）。
 
 CLAUDE_PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(pwd)}"
 HOOK_INPUT=$(cat)
@@ -87,47 +91,54 @@ case "$TOOL_NAME" in
 
         if [ -n "$TS_FILES" ]; then
             # Output to stderr for visibility
-            echo "⚡ Running TypeScript check..." >&2
+            echo "⚡ Running TypeScript check (scoped to modified files)..." >&2
 
             # Run the check and capture output
             CHECK_OUTPUT=$(run_tsc_check 2>&1)
             CHECK_EXIT_CODE=$?
 
-            # Check for TypeScript errors in output
-            if [ $CHECK_EXIT_CODE -ne 0 ] || echo "$CHECK_OUTPUT" | grep -q "error TS"; then
-                ERROR_COUNT=$(count_tsc_errors "$CHECK_OUTPUT")
+            # 全项目既有错误总数（仅用于信息展示）
+            TOTAL_ERROR_COUNT=$(count_tsc_errors "$CHECK_OUTPUT")
 
-                # Save error information for the auto-error-resolver agent
-                echo "$CHECK_OUTPUT" > "$CACHE_DIR/last-errors.txt"
-                echo "project" > "$CACHE_DIR/affected-repos.txt"
+            # 把本次修改的文件转为相对项目根的路径，用于限定范围
+            SCOPE_PATTERNS=""
+            for f in $TS_FILES; do
+                rel="${f#$CLAUDE_PROJECT_DIR/}"
+                # 若不是以项目根为前缀，退化为 basename
+                [ "$rel" = "$f" ] && rel="${f##*/}"
+                SCOPE_PATTERNS="$SCOPE_PATTERNS$rel\n"
+            done
 
-                # Output to stderr for visibility
+            # 仅保留涉及被修改文件的 tsc 输出行
+            SCOPED_OUTPUT=""
+            if [ -n "$SCOPE_PATTERNS" ]; then
+                SCOPED_OUTPUT=$(printf '%b' "$SCOPE_PATTERNS" | while IFS= read -r pat; do
+                    [ -n "$pat" ] && echo "$CHECK_OUTPUT" | grep -F -- "$pat" || true
+                done)
+            else
+                SCOPED_OUTPUT="$CHECK_OUTPUT"
+            fi
+
+            # Save scoped (本次修改文件) error information for the auto-error-resolver agent。
+            # 只缓存被修改文件的错误——既有错误与本次无关，不应触发 stop 钩子或 resolver。
+            echo "$SCOPED_OUTPUT" > "$CACHE_DIR/last-errors.txt"
+            echo "project" > "$CACHE_DIR/affected-repos.txt"
+
+            # 只在被修改文件本身有新错误时才阻断
+            if echo "$SCOPED_OUTPUT" | grep -q "error TS"; then
+                ERROR_COUNT=$(count_tsc_errors "$SCOPED_OUTPUT")
+
                 {
                     echo ""
                     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-                    echo "🚨 TypeScript errors found: $ERROR_COUNT error(s)"
+                    echo "🚨 本次修改的文件存在 TypeScript 错误: $ERROR_COUNT error(s)"
+                    echo "   （项目另有 $TOTAL_ERROR_COUNT 个既有错误，已忽略）"
                     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
                     echo ""
-
-                    if [ "$ERROR_COUNT" -ge 5 ]; then
-                        echo "👉 RECOMMENDED: Use the auto-error-resolver agent to fix errors systematically"
-                        echo ""
-                        echo "   Task(subagent_type='auto-error-resolver', description='Fix TypeScript errors', prompt='Fix the TypeScript compilation errors found in the cached error log')"
-                        echo ""
-                        echo "Error Preview (first 10):"
-                        echo "$CHECK_OUTPUT" | grep "error TS" | head -10
-                        echo ""
-                        remaining=$((ERROR_COUNT - 10))
-                        if [ $remaining -gt 0 ]; then
-                            echo "... and $remaining more errors"
-                        fi
-                    else
-                        echo "💡 Please fix these errors directly:"
-                        echo ""
-                        echo "$CHECK_OUTPUT" | grep "error TS"
-                        echo ""
-                    fi
-
+                    echo "💡 请修复这些错误:"
+                    echo ""
+                    echo "$SCOPED_OUTPUT" | grep "error TS"
+                    echo ""
                     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
                     echo "WE DO NOT LEAVE A MESS BEHIND"
                     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -136,7 +147,7 @@ case "$TOOL_NAME" in
                 # Exit with code 1 to make stderr visible in Claude Code
                 exit 1
             else
-                echo "✅ TypeScript check passed" >&2
+                echo "✅ TypeScript check passed (修改文件无新错误; 忽略 $TOTAL_ERROR_COUNT 个既有错误)" >&2
             fi
         fi
         ;;

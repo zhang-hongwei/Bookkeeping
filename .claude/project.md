@@ -34,7 +34,7 @@ alwaysApply: true
 - **Drizzle-Zod** - Schema-to-Zod integration
 
 ### Authentication
-- **Clerk** - Primary authentication
+- **Supabase Auth** - Primary authentication
 - **NextAuth** - Additional auth options
 - **Supabase** - Backend services
 

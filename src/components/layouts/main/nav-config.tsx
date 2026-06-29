@@ -46,6 +46,11 @@ export const useNavData = (): NavItem[] => {
       icon: <AccountBalanceWalletOutlined />,
     },
     {
+      title: "记账",
+      path: "/finance",
+      icon: <ReceiptOutlined />,
+    },
+    {
       title: "Course",
       path: "/course",
       icon: <SchoolOutlined />,

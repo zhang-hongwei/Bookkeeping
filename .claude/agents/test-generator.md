@@ -361,9 +361,11 @@ describe('API /api/[route]', () => {
 
   describe('Authentication', () => {
     it('should return 401 for unauthenticated requests', async () => {
-      // Mock auth failure
-      vi.mock('@clerk/nextjs/server', () => ({
-        auth: () => ({ userId: null })
+      // Mock auth failure（未登录）
+      vi.mock('@/lib/supabase/server', () => ({
+        createSupabaseServerClient: async () => ({
+          auth: { getUser: async () => ({ data: { user: null } }) },
+        }),
       }));
 
       const request = new NextRequest('http://localhost/api/[route]');

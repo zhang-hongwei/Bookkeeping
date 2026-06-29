@@ -764,14 +764,15 @@ vi.mock('next-auth', () => ({
   getServerSession: vi.fn(),
 }));
 
-// Mock Clerk
-vi.mock('@clerk/nextjs', () => ({
-  auth: vi.fn(),
-  currentUser: vi.fn(),
+// Mock Supabase server client（未登录）
+vi.mock('@/lib/supabase/server', () => ({
+  createSupabaseServerClient: async () => ({
+    auth: { getUser: async () => ({ data: { user: null } }) },
+  }),
 }));
 
 import { getServerSession } from 'next-auth';
-import { auth, currentUser } from '@clerk/nextjs';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
 
 export const mockAuth = {
   // 模拟已登录用户

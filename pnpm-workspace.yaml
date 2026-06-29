@@ -1,0 +1,8 @@
+# pnpm 11.9 构建脚本批准配置（allowBuilds: 包名 -> true/false）。
+# 原生依赖（必需）允许执行 build；仅有 postinstall 的可选依赖显式拒绝。
+allowBuilds:
+  '@clerk/shared': false
+  core-js-pure: false
+  esbuild: true
+  sharp: true
+  unrs-resolver: true

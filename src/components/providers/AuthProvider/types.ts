@@ -7,7 +7,7 @@ import { PropsWithChildren } from 'react';
 /**
  * 支持的认证类型
  */
-export type AuthType = 'clerk' | 'nextauth' | 'none';
+export type AuthType = 'nextauth' | 'none';
 
 /**
  * 认证提供者基础 Props
@@ -17,31 +17,6 @@ export interface BaseAuthProviderProps extends PropsWithChildren {
    * 认证类型
    */
   authType?: AuthType;
-}
-
-/**
- * Clerk 认证配置
- */
-export interface ClerkAuthConfig {
-  /**
-   * 是否启用注册功能
-   */
-  enableSignUp: boolean;
-  
-  /**
-   * 登录页面路径
-   */
-  signInUrl: string;
-  
-  /**
-   * 注册页面路径  
-   */
-  signUpUrl: string;
-  
-  /**
-   * Clerk 发布密钥
-   */
-  publishableKey: string;
 }
 
 /**
@@ -88,20 +63,10 @@ export interface NoAuthConfig {
  */
 export interface AuthEnvironment {
   /**
-   * 是否启用 Clerk 认证
-   */
-  enableClerk: boolean;
-  
-  /**
    * 是否启用 NextAuth 认证
    */
   enableNextAuth: boolean;
-  
-  /**
-   * Clerk 配置
-   */
-  clerk?: ClerkAuthConfig;
-  
+
   /**
    * NextAuth 配置
    */

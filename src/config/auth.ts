@@ -6,11 +6,6 @@ declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace NodeJS {
     interface ProcessEnv {
-      // ===== Clerk ===== //
-      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?: string;
-      CLERK_SECRET_KEY?: string;
-      CLERK_WEBHOOK_SECRET?: string;
-
       // ===== Next Auth ===== //
       NEXT_AUTH_SECRET?: string;
 
@@ -177,23 +172,9 @@ export const getAuthConfig = () => {
 
   return createEnv({
     client: {
-      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: z.string().optional(),
-      /**
-       * whether to enabled clerk
-       */
-      NEXT_PUBLIC_ENABLE_CLERK_AUTH: z.boolean().optional(),
-      /**
-       * whether to enable clerk (can be controlled by NEXT_PUBLIC_ENABLE_CLERK)
-       */
-      NEXT_PUBLIC_ENABLE_CLERK: z.string().optional(),
-
       NEXT_PUBLIC_ENABLE_NEXT_AUTH: z.boolean().optional(),
     },
     server: {
-      // Clerk
-      CLERK_SECRET_KEY: z.string().optional(),
-      CLERK_WEBHOOK_SECRET: z.string().optional(),
-
       // nextAuth
       NEXT_AUTH_SECRET: z.string().optional(),
       NEXT_AUTH_SSO_PROVIDERS: z.string().optional().default("auth0"),
@@ -249,17 +230,6 @@ export const getAuthConfig = () => {
     },
 
     runtimeEnv: {
-      // Clerk
-      NEXT_PUBLIC_ENABLE_CLERK_AUTH:
-        process.env.NEXT_PUBLIC_ENABLE_CLERK !== "false" &&
-        process.env.NEXT_PUBLIC_ENABLE_CLERK !== "0" &&
-        !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
-      NEXT_PUBLIC_ENABLE_CLERK: process.env.NEXT_PUBLIC_ENABLE_CLERK,
-      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:
-        process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
-      CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY,
-      CLERK_WEBHOOK_SECRET: process.env.CLERK_WEBHOOK_SECRET,
-
       // Next Auth
       NEXT_PUBLIC_ENABLE_NEXT_AUTH:
         process.env.NEXT_PUBLIC_ENABLE_NEXT_AUTH === "true",

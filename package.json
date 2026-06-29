@@ -27,13 +27,13 @@
     "agent:listen": "tsx src/features/product-agent/cli/agent-listener.ts",
     "generate:icons": "node scripts/generate-iconpark-data.mjs && node scripts/generate-kawaii-data.mjs",
     "lint": "eslint",
-    "check": "pnpm type-check && pnpm lint"
+    "check": "pnpm type-check && pnpm lint",
+    "test": "vitest",
+    "test:run": "vitest run"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.53",
     "@ai-sdk/react": "^3.0.170",
-    "@clerk/nextjs": "^6.31.6",
-    "@clerk/themes": "^2.4.17",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
@@ -228,6 +228,8 @@
     "eslint-config-next": "^15.5.6",
     "express": "^4.18.2",
     "http-proxy-middleware": "^2.0.6",
-    "typescript": "^5"
-  }
+    "typescript": "^5",
+    "vitest": "^4.1.9"
+  },
+  "packageManager": "pnpm@11.9.0+sha512.bd682d5d03fe525ef7c9fd6780c6884d1e756ac4c9c9fe00c538782824310dcf90e3ddc4f53835f06dfaebd5085e41855e0bcbb3b60de2ac5bbab89e5036f03b"
 }

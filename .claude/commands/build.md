@@ -44,8 +44,8 @@ git status
 // scripts/check-env.ts
 const requiredEnvVars = [
   'DATABASE_URL',
-  'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY',
-  'CLERK_SECRET_KEY',
+  'NEXT_PUBLIC_SUPABASE_URL',
+  'NEXT_PUBLIC_SUPABASE_ANON_KEY',
   'NEXT_PUBLIC_APP_URL',
 ];
 

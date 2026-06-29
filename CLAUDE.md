@@ -113,7 +113,7 @@ Use these agents for complex tasks via the Task tool:
 - **code-refactor-master**: Execute refactoring operations
 - **test-generator**: Automatically generate test cases
 - **error-resolver**: Diagnose and fix errors
-- **auth-route-debugger**: Debug Clerk authentication issues
+- **auth-route-debugger**: Debug authentication issues
 - **auth-route-tester**: Test authentication routes
 - **documentation-architect**: Generate project documentation
 - **plan-reviewer**: Review development plans
@@ -207,4 +207,5 @@ Key topics covered:
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
+at specs/001-double-entry-ledger/plan.md
 <!-- SPECKIT END -->

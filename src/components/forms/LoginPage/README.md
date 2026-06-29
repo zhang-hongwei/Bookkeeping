@@ -262,28 +262,29 @@ export default function LoginRoute() {
 }
 ```
 
-### With Clerk
+### With Supabase
 
 ```tsx
 'use client';
 
-import { useSignIn } from '@clerk/nextjs';
+import { createBrowserClient } from '@supabase/ssr';
 import { useRouter } from 'next/navigation';
 import { LoginPage } from '@/components/forms/LoginPage';
 
 export default function LoginRoute() {
-  const { signIn } = useSignIn();
   const router = useRouter();
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  );
 
   const handleLogin = async (data: LoginFormData) => {
-    if (!signIn) return;
-
-    const result = await signIn.create({
-      identifier: data.email,
+    const { error } = await supabase.auth.signInWithPassword({
+      email: data.email,
       password: data.password,
     });
 
-    if (result.status === 'complete') {
+    if (!error) {
       router.push('/dashboard');
     }
   };

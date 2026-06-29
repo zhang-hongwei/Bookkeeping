@@ -46,12 +46,11 @@ Date: 2025-11-04
 
 低频使用，需要时通过关键词或手动激活：
 
-#### 集成类技能（6个）
+#### 集成类技能（5个）
 9. **supabase-integration** - Supabase 集成
 10. **stripe-integration** - Stripe 支付
-11. **clerk-auth** - Clerk 认证
-12. **file-storage** - 文件存储
-13. **email-service** - 邮件服务
+11. **file-storage** - 文件存储
+12. **email-service** - 邮件服务
 14. **paddle-integration** - Paddle 支付
 15. **neon-database** - Neon 数据库
 

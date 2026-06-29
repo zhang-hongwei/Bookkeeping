@@ -35,7 +35,7 @@ argument-hint: 描述要实现的功能或任务（例如："实现用户权限�
 - Zustand (状态管理)
 - react-hook-form + Zod (表单)
 - Drizzle ORM + PostgreSQL
-- Clerk (认证)
+- Supabase Auth (认证)
 
 ---
 
@@ -153,7 +153,7 @@ mkdir -p dev/active/[task-name]
 **任务**:
 - [ ] **任务 3.1**: 创建 API route
   - **文件**: `src/app/api/[route]/route.ts`
-  - **验收标准**: GET/POST/PUT/DELETE 实现，Clerk 认证集成
+  - **验收标准**: GET/POST/PUT/DELETE 实现，Supabase 认证集成
   - **依赖**: 任务 2.1
 
 ### 阶段 4: UI 层 (X 小时)
@@ -310,9 +310,9 @@ _暂无_
    - API routes 必须导出 GET/POST/PUT/DELETE 函数
    - 使用 NextRequest 和 NextResponse
 
-3. **Clerk 认证**
+3. **Supabase 认证**
    - API routes 需要认证检查
-   - 使用 `auth()` 获取用户信息
+   - 使用 `createSupabaseServerClient()` + `auth.getUser()` 获取用户信息
 
 4. **TypeScript**
    - 严格模式

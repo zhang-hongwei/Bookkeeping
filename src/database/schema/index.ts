@@ -8,3 +8,4 @@ export * from "./ai-widget-apps";
 export * from "./ai-widget-conversations";
 export * from "./ai-widget-messages";
 export * from "./github";
+export * from "./finance";

@@ -20,8 +20,8 @@ description: 快速启动开发环境和常用开发操作
    - 检查 `.env.local` 文件
    - 确保必要的环境变量已设置：
      - `DATABASE_URL`
-     - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
-     - `CLERK_SECRET_KEY`
+     - `NEXT_PUBLIC_SUPABASE_URL`
+     - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
 4. **数据库准备**
    ```bash

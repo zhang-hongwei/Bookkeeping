@@ -389,13 +389,16 @@ const data = validateRequest(createUserSchema, body);
 ### 3. 认证中间件
 
 ```typescript
-// middleware/auth.ts
-import { auth } from '@clerk/nextjs/server';
+// src/lib/auth.ts（项目已有）
+import { createSupabaseServerClient } from '@/lib/supabase/server';
 
-export async function requireAuth() {
-  const { userId } = await auth();
+export async function requireUserId() {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  if (!userId) {
+  if (!user) {
     throw new APIError('未授权', 401, 'UNAUTHORIZED');
   }
 

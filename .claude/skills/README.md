@@ -23,7 +23,7 @@
 | `state-management` | Zustand 状态管理 | Store 设计、状态流 |
 | `form-handling` | 表单处理和验证 | React Hook Form + Zod |
 | `performance` | 性能优化策略 | 渲染优化、缓存策略 |
-| `auth-flow` | 认证授权流程 | Clerk/NextAuth 集成 |
+| `auth-flow` | 认证授权流程 | Supabase/NextAuth 集成 |
 | `deployment` | 部署和 DevOps | CI/CD、环境配置 |
 
 ## 技能结构
