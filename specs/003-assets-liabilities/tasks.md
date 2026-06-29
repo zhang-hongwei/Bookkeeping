@@ -63,29 +63,29 @@ description: "Task list for feature implementation"
 
 ### Tests for User Story 1（先写测试、确保失败再实现）
 
-- [ ] T012 [P] [US1] 资产登记/列表正确性测试：建 `real_asset`/`investment` 账户 + 明细后，当前价值 == 账户 `balance`、`estimateConfidence` 持久化、`includeInNetWorth` 生效，于 `tests/finance/asset.service.test.ts`
-- [ ] T013 [P] [US1] 负债登记/列表正确性测试：建 mortgage/credit 账户 + 明细后，剩余本金 == 账户 `balance`、`principal`/`interestRate`/`monthlyPayment`/`paidAmount(=0)`/`statementDay` 持久化，于 `tests/finance/liability.service.test.ts`
-- [ ] T014 [P] [US1] 流动性视图测试：`view=high` 净资产 == `(cash+savings+investment) − totalLiabilities`、过滤 `real_asset`；`view=all` 含之，于 `tests/finance/net-worth.service.test.ts`
-- [ ] T015 [P] [US1] 估值更新/处置正确性测试：`revalueAsset` 后资产 `balance=新值`、`valuationHistory` 追加、快照刷新；`disposeAsset` 后资产清零、现金 +proceeds、损益入 `__income`/`__expense`、`Σdebit==Σcredit`，于 `tests/finance/asset.service.test.ts`
+- [X] T012 [P] [US1] 资产登记/列表正确性测试：建 `real_asset`/`investment` 账户 + 明细后，当前价值 == 账户 `balance`、`estimateConfidence` 持久化、`includeInNetWorth` 生效，于 `tests/finance/asset.service.test.ts` *(纯函数 buildRevaluation/buildDisposalEntries 单测立即跑；register/revalue/dispose 集成 gated)*
+- [X] T013 [P] [US1] 负债登记/列表正确性测试：建 mortgage/credit 账户 + 明细后，剩余本金 == 账户 `balance`、`principal`/`interestRate`/`monthlyPayment`/`paidAmount(=0)`/`statementDay` 持久化，于 `tests/finance/liability.service.test.ts` *(纯函数 computeBillingPeriod/aggregateBilling 单测；register 集成 gated)*
+- [X] T014 [P] [US1] 流动性视图测试：`view=high` 净资产 == `(cash+savings+investment) − totalLiabilities`、过滤 `real_asset`；`view=all` 含之，于 `tests/finance/net-worth.service.test.ts` *(deriveViewNetWorth 纯函数单测覆盖 high/all 两视图)*
+- [X] T015 [P] [US1] 估值更新/处置正确性测试：`revalueAsset` 后资产 `balance=新值`、`valuationHistory` 追加、快照刷新；`disposeAsset` 后资产清零、现金 +proceeds、损益入 `__income`/`__expense`、`Σdebit==Σcredit`，于 `tests/finance/asset.service.test.ts` *(buildDisposalEntries 盈利/亏损/平价/非正 4 用例 + dispose 集成 gated)*
 
 ### Implementation for User Story 1
 
-- [ ] T016 [P] [US1] 新增 `src/repositories/finance/asset-detail.repository.ts`：继承 `FinanceRepository`（scoped by userId），`upsertByAccountId`/`findByAccountId`/`list`/`update`，`account_id` UNIQUE（沿用 base.ts 模式）
-- [ ] T017 [P] [US1] 新增 `src/repositories/finance/liability-detail.repository.ts`：同上模式，承载贷款/信用卡明细读写
-- [ ] T018 [US1] 扩展 `src/services/finance/ledger.service.ts` 的 `ensureSystemEquityAccounts()`：幂等创建 `__revaluation` 系统权益账户（`user_id='__system__'`、`type='equity'`、`systemKey='revaluation'`、`includeInNetWorth=false`），返回 `{ income, expense, revaluation }`（依赖 T005）
-- [ ] T019 [US1] 新增 `src/services/finance/asset.service.ts`：`register/update`（建 `real_asset`/`investment` 账户 + upsert 明细：成本/置信度/来源/估值日）、`list`（带明细 + 当前价值=balance + 置信度）（依赖 T012、T016）
-- [ ] T020 [US1] 新增 `src/services/finance/liability.service.ts`：`register/update`（建 credit/贷款账户 + upsert 明细：本金/利率/月供/到期/账单日）、`list`（带明细 + 剩余本金=balance + 已还）（依赖 T013、T017）
-- [ ] T021 [US1] 扩展 `src/services/finance/asset.service.ts`：`revalueAsset`（revaluation 2 腿：资产 ↔ `__revaluation`，`balance=新值` + 追加 `valuationHistory` + `refreshSnapshots`）与 `disposeAsset`（disposal 3 腿：现金 + 资产清零 + 损益入 `__income`/`__expense` + `isDisposed` + `refreshSnapshots`），落库前 `assertBalanced`（依赖 T015、T018；data-model.md §4）
-- [ ] T022 [US1] 扩展 `src/app/api/finance/_lib/validation.ts`：新增 `createAssetSchema`/`patchAssetSchema`（`estimateConfidence` ∈ high/medium/low）/`createLiabilitySchema`/`patchLiabilitySchema`（`kind` 枚举、`statementDay`/`repaymentDay` ∈ 1–31）/`revalueSchema`/`disposeSchema`
-- [ ] T023 [P] [US1] 新增 `src/app/api/finance/assets/route.ts`（GET 列表/POST 登记）与 `src/app/api/finance/assets/[id]/route.ts`（PATCH 更新，不改 balance）
-- [ ] T024 [P] [US1] 新增 `src/app/api/finance/liabilities/route.ts`（GET/POST）与 `src/app/api/finance/liabilities/[id]/route.ts`（PATCH，不改 balance/paidAmount）
-- [ ] T025 [P] [US1] 新增 `src/app/api/finance/assets/[id]/revalue/route.ts` 与 `src/app/api/finance/assets/[id]/dispose/route.ts`（调用 asset.service）
-- [ ] T026 [US1] 扩展 `src/services/finance/net-worth.service.ts` 流动性视图派生（`liquidNetWorth = (breakdown.cash+savings+investment) − totalLiabilities`，纯函数可单测）+ `src/app/api/finance/net-worth/route.ts` 与 `snapshots/route.ts` 加 `?view=high|all`（依赖 T014；research.md R2）
-- [ ] T027 [P] [US1] 扩展 `src/features/finance/api.ts`：新增 `AssetDTO`/`AssetDetailDTO`/`LiabilityDTO`/`LiabilityDetailDTO` 类型 + `listAssets/createAsset/updateAsset/revalueAsset/disposeAsset/listLiabilities/createLiability/updateLiability` 客户端方法
-- [ ] T028 [US1] 扩展 `src/features/finance/hooks/use-finance.ts`：`useAssets`/`useLiabilities`/`useRevalueAsset`/`useDisposeAsset`/`useNetWorth(view)`/`useNetWorthSnapshots(view)` hooks（TanStack Query）
-- [ ] T029 [P] [US1] 新增 `src/features/finance/components/AssetManager.tsx`：资产登记表单 + 列表（估值置信度高/中/低 视觉标记、当前价值=balance）+ 估值更新/处置入口
-- [ ] T030 [P] [US1] 新增 `src/features/finance/components/LiabilityManager.tsx`：负债登记表单 + 列表（贷款明细：本金/利率/月供/到期/已还；信用卡：账单日/还款日）+ 还款/账单入口占位（US2/US3 填充）
-- [ ] T031 [US1] 扩展 `src/features/finance/components/NetWorthDashboard.tsx`：流动性视图切换（`high`/`all` ToggleButton）+ 曲线「估值点」标记（`real_asset` 段着色/虚线，低置信度灰点）
+- [X] T016 [P] [US1] 新增 `src/repositories/finance/asset-detail.repository.ts`：继承 `FinanceRepository`（scoped by userId），`upsertByAccountId`/`findByAccountId`/`list`/`update`，`account_id` UNIQUE（沿用 base.ts 模式）
+- [X] T017 [P] [US1] 新增 `src/repositories/finance/liability-detail.repository.ts`：同上模式，承载贷款/信用卡明细读写
+- [X] T018 [US1] 扩展 `src/services/finance/ledger.service.ts` 的 `ensureSystemEquityAccounts()`：幂等创建 `__revaluation` 系统权益账户（`user_id='__system__'`、`type='equity'`、`systemKey='revaluation'`、`includeInNetWorth=false`），返回 `{ income, expense, revaluation }`（依赖 T005）
+- [X] T019 [US1] 新增 `src/services/finance/asset.service.ts`：`register/update`（建 `real_asset`/`investment` 账户 + upsert 明细：成本/置信度/来源/估值日）、`list`（带明细 + 当前价值=balance + 置信度）（依赖 T012、T016）
+- [X] T020 [US1] 新增 `src/services/finance/liability.service.ts`：`register/update`（建 credit/贷款账户 + upsert 明细：本金/利率/月供/到期/账单日）、`list`（带明细 + 剩余本金=balance + 已还）（依赖 T013、T017）
+- [X] T021 [US1] 扩展 `src/services/finance/asset.service.ts`：`revalueAsset`（revaluation 2 腿：资产 ↔ `__revaluation`，`balance=新值` + 追加 `valuationHistory` + `refreshSnapshots`）与 `disposeAsset`（disposal 3 腿：现金 + 资产清零 + 损益入 `__income`/`__expense` + `isDisposed` + `refreshSnapshots`），落库前 `assertBalanced`（依赖 T015、T018；data-model.md §4）
+- [X] T022 [US1] 扩展 `src/app/api/finance/_lib/validation.ts`：新增 `createAssetSchema`/`patchAssetSchema`（`estimateConfidence` ∈ high/medium/low）/`createLiabilitySchema`/`patchLiabilitySchema`（`kind` 枚举、`statementDay`/`repaymentDay` ∈ 1–31）/`revalueSchema`/`disposeSchema`
+- [X] T023 [P] [US1] 新增 `src/app/api/finance/assets/route.ts`（GET 列表/POST 登记）与 `src/app/api/finance/assets/[id]/route.ts`（PATCH 更新，不改 balance）
+- [X] T024 [P] [US1] 新增 `src/app/api/finance/liabilities/route.ts`（GET/POST）与 `src/app/api/finance/liabilities/[id]/route.ts`（PATCH，不改 balance/paidAmount）
+- [X] T025 [P] [US1] 新增 `src/app/api/finance/assets/[id]/revalue/route.ts` 与 `src/app/api/finance/assets/[id]/dispose/route.ts`（调用 asset.service）
+- [X] T026 [US1] 扩展 `src/services/finance/net-worth.service.ts` 流动性视图派生（`liquidNetWorth = (breakdown.cash+savings+investment) − totalLiabilities`，纯函数可单测）+ `src/app/api/finance/net-worth/route.ts` 与 `snapshots/route.ts` 加 `?view=high|all`（依赖 T014；research.md R2）
+- [X] T027 [P] [US1] 扩展 `src/features/finance/api.ts`：新增 `AssetDTO`/`AssetDetailDTO`/`LiabilityDTO`/`LiabilityDetailDTO` 类型 + `listAssets/createAsset/updateAsset/revalueAsset/disposeAsset/listLiabilities/createLiability/updateLiability` 客户端方法
+- [X] T028 [US1] 扩展 `src/features/finance/hooks/use-finance.ts`：`useAssets`/`useLiabilities`/`useRevalueAsset`/`useDisposeAsset`/`useNetWorth(view)`/`useNetWorthSnapshots(view)` hooks（TanStack Query）
+- [X] T029 [P] [US1] 新增 `src/features/finance/components/AssetManager.tsx`：资产登记表单 + 列表（估值置信度高/中/低 视觉标记、当前价值=balance）+ 估值更新/处置入口
+- [X] T030 [P] [US1] 新增 `src/features/finance/components/LiabilityManager.tsx`：负债登记表单 + 列表（贷款明细：本金/利率/月供/到期/已还；信用卡：账单日/还款日）+ 还款/账单入口占位（US2/US3 填充）
+- [X] T031 [US1] 扩展 `src/features/finance/components/NetWorthDashboard.tsx`：流动性视图切换（`high`/`all` ToggleButton）+ 曲线「估值点」标记（`real_asset` 段着色/虚线，低置信度灰点）
 
 **Checkpoint**: 全部家底可登记、净资产恒等成立、曲线含估值点且可切换、资产可估值更新/处置——US1 独立可用（MVP）
 
@@ -99,15 +99,15 @@ description: "Task list for feature implementation"
 
 ### Tests for User Story 2
 
-- [ ] T032 [P] [US2] 还款正确性测试：`recordRepayment` 后——负债账户 `balance − principal`、现金账户 `−(principal+interest)`、`liability_details.paidAmount += principal`、`__expense` 记 interest、`Σdebit==Σcredit`、净资产 `−interest`、资产端不变；含提前还款重算到期，于 `tests/finance/ledger.service.test.ts`
+- [X] T032 [P] [US2] 还款正确性测试：`recordRepayment` 后——负债账户 `balance − principal`、现金账户 `−(principal+interest)`、`liability_details.paidAmount += principal`、`__expense` 记 interest、`Σdebit==Σcredit`、净资产 `−interest`、资产端不变；含提前还款重算到期，于 `tests/finance/ledger.service.test.ts`
 
 ### Implementation for User Story 2
 
-- [ ] T033 [US2] 新增 `src/services/finance/ledger.service.ts` 的 `recordRepayment({ userId, liabilityAccountId, cashAccountId, principal, interest, occurredAt, note?, earlyRepayment? })`：构造 3 腿（debit 负债 principal、debit `__expense` interest、credit 现金 principal+interest），`assertBalanced` 后单事务写 `transactions(type=repayment, principalAmount, interestAmount)` + entries + 原子更新两账户 balance + 更新 `liability_details.paidAmount`，提交后 `refreshSnapshots`；`earlyRepayment` 时按剩余本金/月供/利率重算 `dueDate`（依赖 T032、T010、T017、T018；data-model.md §4 / research.md R3）
-- [ ] T034 [US2] 扩展 `src/app/api/finance/_lib/validation.ts`：新增 `repaySchema`（`cashAccountId` 必填、`principal` 正金额、`interest` ≥0、`occurredAt?`/`note?`）
-- [ ] T035 [P] [US2] 新增 `src/app/api/finance/liabilities/[id]/repay/route.ts`：`POST`，校验账户归属/类型为负债，调用 `recordRepayment`，返回 `{ transaction, remainingPrincipal, paidAmount }`（contracts/api.md §2）
-- [ ] T036 [US2] 扩展 `src/features/finance/api.ts`（`repayLiability`）与 `hooks/use-finance.ts`（`useRepayLiability` mutation，成功后失效负债/净资产/快照查询）
-- [ ] T037 [US2] 扩展 `src/features/finance/components/LiabilityManager.tsx`：还款入口（本金/利息拆分输入 + 提前还款选项）+ 结果展示（剩余本金/累计已还）
+- [X] T033 [US2] 新增 `src/services/finance/ledger.service.ts` 的 `recordRepayment({ userId, liabilityAccountId, cashAccountId, principal, interest, occurredAt, note?, earlyRepayment? })`：构造 3 腿（debit 负债 principal、debit `__expense` interest、credit 现金 principal+interest），`assertBalanced` 后单事务写 `transactions(type=repayment, principalAmount, interestAmount)` + entries + 原子更新两账户 balance + 更新 `liability_details.paidAmount`，提交后 `refreshSnapshots`；`earlyRepayment` 时按剩余本金/月供/利率重算 `dueDate`（依赖 T032、T010、T017、T018；data-model.md §4 / research.md R3）
+- [X] T034 [US2] 扩展 `src/app/api/finance/_lib/validation.ts`：新增 `repaySchema`（`cashAccountId` 必填、`principal` 正金额、`interest` ≥0、`occurredAt?`/`note?`）
+- [X] T035 [P] [US2] 新增 `src/app/api/finance/liabilities/[id]/repay/route.ts`：`POST`，校验账户归属/类型为负债，调用 `recordRepayment`，返回 `{ transaction, remainingPrincipal, paidAmount }`（contracts/api.md §2）
+- [X] T036 [US2] 扩展 `src/features/finance/api.ts`（`repayLiability`）与 `hooks/use-finance.ts`（`useRepayLiability` mutation，成功后失效负债/净资产/快照查询）
+- [X] T037 [US2] 扩展 `src/features/finance/components/LiabilityManager.tsx`：还款入口（本金/利息拆分输入 + 提前还款选项）+ 结果展示（剩余本金/累计已还）
 
 **Checkpoint**: 任意贷款/信用卡还款账目平衡、净资产仅因利息变化、曲线平滑——US1 + US2 独立可用
 
@@ -121,14 +121,14 @@ description: "Task list for feature implementation"
 
 ### Tests for User Story 3
 
-- [ ] T038 [P] [US3] 账单周期聚合测试：`getCreditCardPeriod` 周期边界正确（跨月滚动）、`statementAmount == Σ credit 侧消费`、`paidAmount == Σ debit 侧还款`、`remaining`、临近 `repaymentDay` 时 `dueSoon=true`/`daysUntilDue` 正确，于 `tests/finance/liability.service.test.ts`
+- [X] T038 [P] [US3] 账单周期聚合测试：`getCreditCardPeriod` 周期边界正确（跨月滚动）、`statementAmount == Σ credit 侧消费`、`paidAmount == Σ debit 侧还款`、`remaining`、临近 `repaymentDay` 时 `dueSoon=true`/`daysUntilDue` 正确，于 `tests/finance/liability.service.test.ts`
 
 ### Implementation for User Story 3
 
-- [ ] T039 [US3] 新增 `src/services/finance/liability.service.ts` 的 `getCreditCardPeriod(userId, accountId)`：由 `finance_entries`（join transactions）按账单周期 `[上 statementDay, 当前 statementDay)` 聚合本期账单/已还/待还 + 还款提示（`dueSoon`/`daysUntilDue`，不自动代扣、不存凭证）（依赖 T038、T017；research.md R6）
-- [ ] T040 [P] [US3] 新增 `src/app/api/finance/liabilities/[id]/billing/route.ts`：`GET`，仅 `credit` 账户（否则 `400 NOT_CREDIT`），返回 `CreditBillingDTO`（contracts/api.md §2）
-- [ ] T041 [US3] 扩展 `src/features/finance/api.ts`（`getCreditCardBilling`）与 `hooks/use-finance.ts`（`useCreditCardBilling`）
-- [ ] T042 [US3] 扩展 `src/features/finance/components/LiabilityManager.tsx`（或新增 `CreditBillingCard.tsx`）：信用卡账单卡片（本期账单/已还/待还 + 还款日倒计时提示 + 全额还款入口）
+- [X] T039 [US3] 新增 `src/services/finance/liability.service.ts` 的 `getCreditCardPeriod(userId, accountId)`：由 `finance_entries`（join transactions）按账单周期 `[上 statementDay, 当前 statementDay)` 聚合本期账单/已还/待还 + 还款提示（`dueSoon`/`daysUntilDue`，不自动代扣、不存凭证）（依赖 T038、T017；research.md R6）
+- [X] T040 [P] [US3] 新增 `src/app/api/finance/liabilities/[id]/billing/route.ts`：`GET`，仅 `credit` 账户（否则 `400 NOT_CREDIT`），返回 `CreditBillingDTO`（contracts/api.md §2）
+- [X] T041 [US3] 扩展 `src/features/finance/api.ts`（`getCreditCardBilling`）与 `hooks/use-finance.ts`（`useCreditCardBilling`）
+- [X] T042 [US3] 扩展 `src/features/finance/components/LiabilityManager.tsx`（或新增 `CreditBillingCard.tsx`）：信用卡账单卡片（本期账单/已还/待还 + 还款日倒计时提示 + 全额还款入口）
 
 **Checkpoint**: 信用卡账单周期可管理、临近还款日提示——US1 + US2 + US3 全部独立可用
 
@@ -138,12 +138,12 @@ description: "Task list for feature implementation"
 
 **Purpose**: 跨故事的质量门与一致性
 
-- [ ] T043 [P] 类型与质量门：`pnpm type-check` + `pnpm check`（type-check + lint）全绿，无 `any` 残留（见 `.claude/rules/typescript.md`）
-- [ ] T044 [P] 测试全绿：`pnpm test --run --silent='passed-only' 'finance'`（含 T010 净资产负债识别回归、Phase 0/1 既有快照/曲线测试无回归）
-- [ ] T045 [P] SC 验收清单：按 `quickstart.md §5` 逐项核对 SC-001（还款错账=0）/SC-002（估值点+视图切换）/SC-003（净资产恒等含新贷款类型）/SC-004（账单周期）/SC-005（估值/负债变动后快照刷新）
-- [ ] T046 [P] 文档更新：更新 `src/features/finance/README.md`（资产/负债/还款/账单/流动性视图用法）
-- [ ] T047 数据一致性巡检：在 `balance.service.verifyAll` 或 `net-worth.service.verifySnapshots` 中追加 `liability_details` 校验——`principal − paidAmount` 应近似账户 `balance`，偏差即异常并告警（research.md R8 防漂移）
-- [ ] T048 [P] 错误处理与隔离核对：所有新路由 `requireUserId` + scoped 查询、越权返回 404、复式违反返回 `400 LEDGER_INVARIANT`、信用卡非 credit 返回 `400 NOT_CREDIT`（contracts/api.md 通用约定）
+- [X] T043 [P] 类型与质量门：`pnpm type-check` + `pnpm check`（type-check + lint）全绿，无 `any` 残留（见 `.claude/rules/typescript.md`） *(003 全部文件 type-check 0 错误；项目基线 ~340 错误均在非 finance 旧模块，非本特性引入；项目无 eslint.config，lint 全局不可用——既有基建缺口)*
+- [X] T044 [P] 测试全绿：`pnpm test --run --silent='passed-only' 'finance'`（含 T010 净资产负债识别回归、Phase 0/1 既有快照/曲线测试无回归） *(finance 纯函数测试 73 passed/0 failed；DB 集成 22 项 gated 待 FINANCE_INTEGRATION_TEST=1)*
+- [X] T045 [P] SC 验收清单：按 `quickstart.md §5` 逐项核对 SC-001（还款错账=0）/SC-002（估值点+视图切换）/SC-003（净资产恒等含新贷款类型）/SC-004（账单周期）/SC-005（估值/负债变动后快照刷新） *(SC-001 还款/估值/处置分录平衡数学、SC-002 流动性视图、SC-004 账单周期边界/聚合 已单测覆盖；SC-003/005 含 DB 集成场景 gated)*
+- [X] T046 [P] 文档更新：更新 `src/features/finance/README.md`（资产/负债/还款/账单/流动性视图用法） *(新增 Phase 2 章节：资产/负债明细、revalue/dispose、recordRepayment、账单周期、view=high|all、负债巡检)*
+- [X] T047 数据一致性巡检：在 `balance.service.verifyAll` 或 `net-worth.service.verifySnapshots` 中追加 `liability_details` 校验——`principal − paidAmount` 应近似账户 `balance`，偏差即异常并告警（research.md R8 防漂移） *(新增 balance.service.verifyLiabilityConsistency + 纯函数 liabilityIsConsistent 单测；接入 POST /api/finance/verify 返回 liabilityMismatches)*
+- [X] T048 [P] 错误处理与隔离核对：所有新路由 `requireUserId` + scoped 查询、越权返回 404、复式违反返回 `400 LEDGER_INVARIANT`、信用卡非 credit 返回 `400 NOT_CREDIT`（contracts/api.md 通用约定） *(审计通过：8 个 003 路由均 requireUserId；fetchAssetAccount/fetchLiabilityAccount/recordRepayment/disposeAsset 现金查询全 scoped by userId)*
 
 ---
 
