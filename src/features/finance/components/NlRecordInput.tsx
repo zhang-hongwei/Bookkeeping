@@ -27,6 +27,9 @@ const TYPE_LABELS: Record<TransactionType, string> = {
   expense: '支出',
   income: '收入',
   transfer: '转账',
+  repayment: '还款',
+  revaluation: '估值调整',
+  disposal: '处置',
 };
 
 export function NlRecordInput() {

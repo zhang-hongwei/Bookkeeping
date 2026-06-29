@@ -37,6 +37,10 @@ const TYPE_LABELS: Record<AccountType, string> = {
   investment: '投资',
   real_asset: '实物资产',
   equity: '权益',
+  mortgage: '房贷',
+  car_loan: '车贷',
+  consumer_loan: '消费贷',
+  borrowing: '借款',
 };
 
 function formatCNY(value: string): string {

@@ -9,8 +9,16 @@ import {
 } from 'drizzle-orm/pg-core';
 import { financeAccounts } from './accounts';
 
-/** 交易类型 */
-export const TRANSACTION_TYPES = ['income', 'expense', 'transfer'] as const;
+/** 交易类型（Phase 2 追加 repayment/revaluation/disposal）。 */
+export const TRANSACTION_TYPES = [
+  'income',
+  'expense',
+  'transfer',
+  // Phase 2：资产/负债生命周期交易
+  'repayment', // 还款：本金减负债 + 利息计支出 + 合计减现金（3 腿）
+  'revaluation', // 估值更新：资产 ↔ __revaluation（2 腿）
+  'disposal', // 资产处置：现金 + 资产清零 + 实现损益（3 腿）
+] as const;
 export type TransactionType = (typeof TRANSACTION_TYPES)[number];
 
 /** 交易来源（Phase 1 追加 ocr：截图 OCR 记账） */
@@ -42,6 +50,10 @@ export const transactions = pgTable('finance_transactions', {
     .default('1.00')
     .notNull(),
   billImportId: uuid('bill_import_id'),
+  // Phase 2：还款本金/利息拆分（仅 type=repayment 填充，其它为 null）。
+  // amount = principal + interest；便于「利息支出」报表与拆分追溯。
+  principalAmount: decimal('principal_amount', { precision: 18, scale: 2 }),
+  interestAmount: decimal('interest_amount', { precision: 18, scale: 2 }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });

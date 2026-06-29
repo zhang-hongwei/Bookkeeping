@@ -18,6 +18,7 @@ import {
   entries,
   transactions,
   ASSET_ACCOUNT_TYPES,
+  LIABILITY_ACCOUNT_TYPES,
   type AccountType,
   type EntrySide,
 } from '@/database/schema/finance';
@@ -30,6 +31,37 @@ export interface NetWorth {
   totalLiabilities: string;
   netWorth: string;
   breakdown: Record<string, string>;
+}
+
+/** 净资产流动性视图（Phase 2，FR-003 / 设计 D2）。 */
+export type NetWorthView = 'high' | 'all';
+
+/** 高流动性资产类型（现金/储蓄/投资）；real_asset 等估值资产为低流动性「估值点」。 */
+export const HIGH_LIQUIDITY_TYPES = ['cash', 'savings', 'investment'] as const;
+
+/**
+ * 纯函数：按流动性视图派生净资产（FR-003）。
+ * - `all`：原样返回（全部家底）。
+ * - `high`：仅高流动性资产，过滤 real_asset 等估值点；net = (cash+savings+investment) − totalLiabilities。
+ * 从既有 breakdown 即时派生，无需额外查询/物化。
+ */
+export function deriveViewNetWorth(nw: NetWorth, view: NetWorthView): NetWorth {
+  if (view === 'all') return nw;
+  const liquidAssetsCents = HIGH_LIQUIDITY_TYPES.reduce(
+    (sum, t) => sum + toCents(nw.breakdown[t] ?? '0'),
+    0,
+  );
+  const liabilitiesCents = toCents(nw.totalLiabilities);
+  const liquidBreakdown: Record<string, string> = {};
+  for (const t of HIGH_LIQUIDITY_TYPES) {
+    if (nw.breakdown[t] !== undefined) liquidBreakdown[t] = nw.breakdown[t];
+  }
+  return {
+    totalAssets: fromCents(liquidAssetsCents),
+    totalLiabilities: nw.totalLiabilities,
+    netWorth: fromCents(liquidAssetsCents - liabilitiesCents),
+    breakdown: liquidBreakdown,
+  };
 }
 
 interface AccountView {
@@ -77,7 +109,7 @@ export function computeNetWorthFromAccounts(accounts: AccountView[]): NetWorth {
     if (a.type === 'equity') continue;
     const c = toCents(a.balance);
     breakdownCents[a.type] = (breakdownCents[a.type] ?? 0) + c;
-    if (a.type === 'credit') liabilitiesCents += Math.abs(c);
+    if (LIABILITY_ACCOUNT_TYPES.includes(a.type)) liabilitiesCents += Math.abs(c);
     else if (ASSET_ACCOUNT_TYPES.includes(a.type) && a.includeInNetWorth)
       assetsCents += c;
   }
@@ -110,7 +142,8 @@ export function computeNetWorthAtDatePure(
       balCents += signedDeltaCents(a.type, e.side, e.amount);
     }
     breakdownCents[a.type] = (breakdownCents[a.type] ?? 0) + balCents;
-    if (a.type === 'credit') liabilitiesCents += Math.abs(balCents);
+    if (LIABILITY_ACCOUNT_TYPES.includes(a.type))
+      liabilitiesCents += Math.abs(balCents);
     else if (ASSET_ACCOUNT_TYPES.includes(a.type) && a.includeInNetWorth)
       assetsCents += balCents;
   }

@@ -31,6 +31,10 @@ const TYPE_META: Record<TransactionType, { label: string; color: string; sign: s
   expense: { label: '支出', color: 'error.main', sign: '-' },
   income: { label: '收入', color: 'success.main', sign: '+' },
   transfer: { label: '转账', color: 'text.secondary', sign: '' },
+  // Phase 2：资产/负债生命周期交易（专用入口产生，此处仅展示）
+  repayment: { label: '还款', color: 'warning.main', sign: '-' },
+  revaluation: { label: '估值调整', color: 'info.main', sign: '' },
+  disposal: { label: '处置', color: 'text.secondary', sign: '' },
 };
 
 function formatTime(iso: string): string {

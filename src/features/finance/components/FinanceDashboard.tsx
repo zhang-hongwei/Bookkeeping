@@ -10,6 +10,8 @@ import { useState } from 'react';
 import { Box, Stack, Typography, Button, Grid } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import { AccountManager } from './AccountManager';
+import { AssetManager } from './AssetManager';
+import { LiabilityManager } from './LiabilityManager';
 import { TransactionForm } from './TransactionForm';
 import { TransactionList } from './TransactionList';
 import { ImportFlow } from './ImportFlow';
@@ -40,6 +42,12 @@ export function FinanceDashboard() {
         </Grid>
         <Grid size={{ xs: 12, md: 4 }}>
           <AccountManager />
+        </Grid>
+        <Grid size={{ xs: 12, md: 4 }}>
+          <AssetManager />
+        </Grid>
+        <Grid size={{ xs: 12, md: 4 }}>
+          <LiabilityManager />
         </Grid>
         <Grid size={{ xs: 12, md: 4 }}>
           <Stack spacing={2}>

@@ -214,6 +214,110 @@ export interface GenerateReportResult {
   contentRef: string | null;
 }
 
+// ===== Phase 2：资产 / 负债 / 还款 / 账单 =====
+
+export type EstimateConfidence = 'high' | 'medium' | 'low';
+export type ValuationSource = 'manual' | 'market' | 'estimate';
+export type LiabilityKind = 'credit' | 'mortgage' | 'car_loan' | 'consumer_loan' | 'borrowing';
+export type AssetType = 'real_asset' | 'investment';
+export type NetWorthView = 'high' | 'all';
+
+export interface ValuationHistoryEntryDTO {
+  date: string;
+  value: string;
+  confidence: EstimateConfidence;
+  source: ValuationSource;
+}
+
+export interface AssetDTO {
+  id: string;
+  name: string;
+  type: AssetType;
+  balance: string;
+  currentValue: string;
+  includeInNetWorth: boolean;
+  isArchived: boolean;
+  costBasis: string;
+  valuationSource: ValuationSource;
+  estimateConfidence: EstimateConfidence;
+  valuationDate: string | null;
+  valuationHistory: ValuationHistoryEntryDTO[];
+  isDisposed: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LiabilityDTO {
+  id: string;
+  name: string;
+  type: LiabilityKind;
+  balance: string;
+  remainingPrincipal: string;
+  includeInNetWorth: boolean;
+  isArchived: boolean;
+  kind: LiabilityKind;
+  principal: string;
+  interestRate: string | null;
+  monthlyPayment: string | null;
+  dueDate: string | null;
+  paidAmount: string;
+  statementDay: number | null;
+  repaymentDay: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RepayResultDTO {
+  transaction: {
+    id: string;
+    type: 'repayment';
+    amount: string;
+    principalAmount: string | null;
+    interestAmount: string | null;
+    occurredAt: string;
+  };
+  remainingPrincipal: string;
+  paidAmount: string;
+}
+
+export interface CreditBillingDTO {
+  periodStart: string;
+  periodEnd: string;
+  statementAmount: string;
+  paidAmount: string;
+  remaining: string;
+  statementDay: number;
+  repaymentDay: number;
+  dueSoon: boolean;
+  daysUntilDue: number | null;
+}
+
+export interface CreateAssetPayload {
+  name: string;
+  type: AssetType;
+  currentValue: string;
+  costBasis?: string;
+  valuationSource?: ValuationSource;
+  estimateConfidence?: EstimateConfidence;
+  valuationDate?: string;
+  currency?: string;
+  includeInNetWorth?: boolean;
+}
+
+export interface CreateLiabilityPayload {
+  name: string;
+  type: LiabilityKind;
+  openingBalance: string;
+  principal?: string;
+  interestRate?: string | null;
+  monthlyPayment?: string | null;
+  dueDate?: string | null;
+  statementDay?: number | null;
+  repaymentDay?: number | null;
+  currency?: string;
+  includeInNetWorth?: boolean;
+}
+
 export interface CreateTransactionPayload {
   type: TransactionType;
   amount: string;
@@ -326,11 +430,63 @@ export const financeApi = {
       body: JSON.stringify({ text }),
     }),
 
-  getNetWorth: () => http<NetWorthDTO>(`${BASE}/net-worth`),
-  getNetWorthSnapshots: (from: string, to: string) =>
-    http<{ items: NetWorthSnapshotDTO[] }>(
-      `${BASE}/net-worth/snapshots?from=${from}&to=${to}`,
-    ),
+  getNetWorth: (view?: NetWorthView) => {
+    const qs = view ? `?view=${view}` : '';
+    return http<NetWorthDTO & { view?: NetWorthView }>(`${BASE}/net-worth${qs}`);
+  },
+  getNetWorthSnapshots: (from: string, to: string, view?: NetWorthView) => {
+    const qs = new URLSearchParams({ from, to });
+    if (view) qs.set('view', view);
+    return http<{ items: NetWorthSnapshotDTO[]; view?: NetWorthView }>(
+      `${BASE}/net-worth/snapshots?${qs.toString()}`,
+    );
+  },
+
+  listAssets: () => http<{ items: AssetDTO[] }>(`${BASE}/assets`),
+  createAsset: (payload: CreateAssetPayload) =>
+    http<{ asset: AssetDTO }>(`${BASE}/assets`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  updateAsset: (id: string, payload: Partial<CreateAssetPayload>) =>
+    http<{ asset: AssetDTO }>(`${BASE}/assets/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+  revalueAsset: (
+    id: string,
+    payload: { newValue: string; confidence?: EstimateConfidence; source?: ValuationSource },
+  ) =>
+    http<{ asset: AssetDTO }>(`${BASE}/assets/${id}/revalue`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  disposeAsset: (id: string, payload: { cashAccountId: string; proceeds: string; note?: string }) =>
+    http<{ asset: AssetDTO }>(`${BASE}/assets/${id}/dispose`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  listLiabilities: () => http<{ items: LiabilityDTO[] }>(`${BASE}/liabilities`),
+  createLiability: (payload: CreateLiabilityPayload) =>
+    http<{ liability: LiabilityDTO }>(`${BASE}/liabilities`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  updateLiability: (id: string, payload: Partial<CreateLiabilityPayload>) =>
+    http<{ liability: LiabilityDTO }>(`${BASE}/liabilities/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+  repayLiability: (
+    id: string,
+    payload: { cashAccountId: string; principal: string; interest?: string; note?: string; earlyRepayment?: boolean },
+  ) =>
+    http<RepayResultDTO>(`${BASE}/liabilities/${id}/repay`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  getCreditCardBilling: (id: string) => http<CreditBillingDTO>(`${BASE}/liabilities/${id}/billing`),
 
   parseOcr: async (file: File): Promise<OcrRecordResultDTO> => {
     const fd = new FormData();

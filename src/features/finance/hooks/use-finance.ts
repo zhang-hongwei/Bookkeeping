@@ -16,6 +16,11 @@ import {
   financeApi,
   type CreateAccountPayload,
   type CreateTransactionPayload,
+  type CreateAssetPayload,
+  type CreateLiabilityPayload,
+  type EstimateConfidence,
+  type ValuationSource,
+  type NetWorthView,
 } from '../api';
 import type { AccountType, CategoryKind, TransactionType } from '@/database/schema/finance';
 
@@ -176,20 +181,152 @@ export function useParseNl() {
   });
 }
 
-/** 净资产仪表盘（总资产/总负债/净资产 + 今日变化）。 */
-export function useNetWorth() {
+/** 净资产仪表盘（总资产/总负债/净资产 + 今日变化）。view=high 仅高流动性资产。 */
+export function useNetWorth(view?: NetWorthView) {
   return useQuery({
-    queryKey: ['finance', 'net-worth'],
-    queryFn: () => financeApi.getNetWorth(),
+    queryKey: ['finance', 'net-worth', view ?? 'all'],
+    queryFn: () => financeApi.getNetWorth(view),
   });
 }
 
-/** 净资产曲线（区间快照）。 */
-export function useNetWorthSnapshots(from: string, to: string, enabled = true) {
+/** 净资产曲线（区间快照）。view=high 仅高流动性资产（过滤估值点）。 */
+export function useNetWorthSnapshots(from: string, to: string, view?: NetWorthView, enabled = true) {
   return useQuery({
-    queryKey: ['finance', 'net-worth', 'snapshots', from, to],
-    queryFn: () => financeApi.getNetWorthSnapshots(from, to),
+    queryKey: ['finance', 'net-worth', 'snapshots', from, to, view ?? 'all'],
+    queryFn: () => financeApi.getNetWorthSnapshots(from, to, view),
     enabled,
+  });
+}
+
+// ===== Phase 2：资产 / 负债 / 还款 / 账单 =====
+
+/** 资产列表（带明细 + 当前价值 + 估值置信度）。 */
+export function useAssets() {
+  return useQuery({
+    queryKey: ['finance', 'assets'],
+    queryFn: () => financeApi.listAssets(),
+  });
+}
+
+/** 登记资产。成功后失效资产列表 + 净资产/曲线。 */
+export function useCreateAsset() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: CreateAssetPayload) => financeApi.createAsset(payload),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['finance', 'assets'] });
+      void qc.invalidateQueries({ queryKey: ['finance', 'net-worth'] });
+    },
+  });
+}
+
+/** 更新资产元数据（不改估值）。 */
+export function useUpdateAsset() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: Partial<CreateAssetPayload> }) =>
+      financeApi.updateAsset(id, payload),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['finance', 'assets'] });
+    },
+  });
+}
+
+/** 估值更新（revaluation）。成功后失效资产 + 净资产/曲线。 */
+export function useRevalueAsset() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: string;
+      payload: { newValue: string; confidence?: EstimateConfidence; source?: ValuationSource };
+    }) => financeApi.revalueAsset(id, payload),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['finance', 'assets'] });
+      void qc.invalidateQueries({ queryKey: ['finance', 'net-worth'] });
+    },
+  });
+}
+
+/** 资产处置（disposal）。成功后失效资产 + 账户 + 净资产/曲线。 */
+export function useDisposeAsset() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: string;
+      payload: { cashAccountId: string; proceeds: string; note?: string };
+    }) => financeApi.disposeAsset(id, payload),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['finance', 'assets'] });
+      void qc.invalidateQueries({ queryKey: ['finance', 'accounts'] });
+      void qc.invalidateQueries({ queryKey: ['finance', 'net-worth'] });
+    },
+  });
+}
+
+/** 负债列表（带明细 + 剩余本金 + 已还）。 */
+export function useLiabilities() {
+  return useQuery({
+    queryKey: ['finance', 'liabilities'],
+    queryFn: () => financeApi.listLiabilities(),
+  });
+}
+
+/** 登记负债。成功后失效负债列表 + 净资产/曲线。 */
+export function useCreateLiability() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: CreateLiabilityPayload) => financeApi.createLiability(payload),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['finance', 'liabilities'] });
+      void qc.invalidateQueries({ queryKey: ['finance', 'net-worth'] });
+    },
+  });
+}
+
+/** 更新负债元数据（不改余额/已还）。 */
+export function useUpdateLiability() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: Partial<CreateLiabilityPayload> }) =>
+      financeApi.updateLiability(id, payload),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['finance', 'liabilities'] });
+    },
+  });
+}
+
+/** 还款（本金/利息拆分）。成功后失效负债 + 账户 + 净资产/曲线 + 账单。 */
+export function useRepayLiability() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: string;
+      payload: { cashAccountId: string; principal: string; interest?: string; note?: string; earlyRepayment?: boolean };
+    }) => financeApi.repayLiability(id, payload),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['finance', 'liabilities'] });
+      void qc.invalidateQueries({ queryKey: ['finance', 'accounts'] });
+      void qc.invalidateQueries({ queryKey: ['finance', 'transactions'] });
+      void qc.invalidateQueries({ queryKey: ['finance', 'net-worth'] });
+    },
+  });
+}
+
+/** 信用卡账单周期（仅 credit 账户）。 */
+export function useCreditCardBilling(id: string | null, enabled = true) {
+  return useQuery({
+    queryKey: ['finance', 'billing', id],
+    queryFn: () => financeApi.getCreditCardBilling(id!),
+    enabled: Boolean(id) && enabled,
   });
 }
 

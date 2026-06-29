@@ -5,7 +5,7 @@
  */
 'use client';
 
-import { Box, Card, CardContent, Stack, Typography } from '@mui/material';
+import { Box, Card, CardContent, Stack, Typography, ToggleButton, ToggleButtonGroup } from '@mui/material';
 import {
   LineChart,
   Line,
@@ -15,7 +15,9 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from 'recharts';
+import { useState } from 'react';
 import { useNetWorth, useNetWorthSnapshots } from '../hooks/use-finance';
+import type { NetWorthView } from '../api';
 
 function fmt(value: string): string {
   const n = Number(value);
@@ -34,10 +36,11 @@ function daysAgo(n: number): string {
 }
 
 export function NetWorthDashboard() {
-  const { data: nw, isLoading } = useNetWorth();
+  const [view, setView] = useState<NetWorthView>('all');
+  const { data: nw, isLoading } = useNetWorth(view);
   const from = daysAgo(30);
   const to = todayStr();
-  const { data: snap } = useNetWorthSnapshots(from, to);
+  const { data: snap } = useNetWorthSnapshots(from, to, view);
   const chartData = (snap?.items ?? []).map((s) => ({
     date: s.date.slice(5),
     net: Number(s.netWorth),
@@ -101,7 +104,23 @@ export function NetWorthDashboard() {
 
       <Card variant="outlined">
         <CardContent>
-          <Typography variant="subtitle2" sx={{ mb: 1 }}>净资产曲线（近 30 天）</Typography>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+            <Typography variant="subtitle2">净资产曲线（近 30 天）</Typography>
+            <ToggleButtonGroup
+              size="small"
+              exclusive
+              value={view}
+              onChange={(_, v) => v && setView(v)}
+            >
+              <ToggleButton value="all">全部资产</ToggleButton>
+              <ToggleButton value="high">仅高流动性</ToggleButton>
+            </ToggleButtonGroup>
+          </Stack>
+          {view === 'high' && (
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+              已过滤房产/车辆等低流动性估值点
+            </Typography>
+          )}
           <Box sx={{ width: '100%', height: 220 }}>
             {chartData.length > 1 ? (
               <ResponsiveContainer width="100%" height="100%">

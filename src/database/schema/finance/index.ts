@@ -7,4 +7,6 @@ export * from './bill-imports';
 export * from './net-worth-snapshots';
 export * from './rule-findings';
 export * from './ai-reports';
+export * from './asset-details';
+export * from './liability-details';
 export * from './relations';

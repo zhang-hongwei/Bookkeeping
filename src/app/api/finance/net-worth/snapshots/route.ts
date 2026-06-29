@@ -1,10 +1,11 @@
 /**
  * 净资产曲线 API（US1）。
- * - GET /api/finance/net-worth/snapshots?from=&to=   区间快照（缺口懒回填）
+ * - GET /api/finance/net-worth/snapshots?from=&to=&view=high|all   区间快照（缺口懒回填）
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { requireUserId } from '@/app/api/finance/_lib/auth';
-import { snapshotRange } from '@/services/finance/net-worth.service';
+import { netWorthViewSchema } from '@/app/api/finance/_lib/validation';
+import { snapshotRange, deriveViewNetWorth } from '@/services/finance/net-worth.service';
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,16 +22,30 @@ export async function GET(request: NextRequest) {
         { status: 422 },
       );
     }
+    const viewParsed = netWorthViewSchema.safeParse(searchParams.get('view') ?? 'all');
+    const view = viewParsed.success ? viewParsed.data : 'all';
 
     const rows = await snapshotRange(userId, from, to);
     return NextResponse.json({
-      items: rows.map((s) => ({
-        date: s.date,
-        totalAssets: s.totalAssets,
-        totalLiabilities: s.totalLiabilities,
-        netWorth: s.netWorth,
-        breakdown: s.breakdown,
-      })),
+      view,
+      items: rows.map((s) => {
+        const v = deriveViewNetWorth(
+          {
+            totalAssets: s.totalAssets,
+            totalLiabilities: s.totalLiabilities,
+            netWorth: s.netWorth,
+            breakdown: s.breakdown,
+          },
+          view,
+        );
+        return {
+          date: s.date,
+          totalAssets: v.totalAssets,
+          totalLiabilities: v.totalLiabilities,
+          netWorth: v.netWorth,
+          breakdown: v.breakdown,
+        };
+      }),
     });
   } catch (error) {
     console.error('GET /api/finance/net-worth/snapshots error:', error);

@@ -34,6 +34,10 @@ const TYPE_LABELS: Record<TransactionType, string> = {
   expense: '支出',
   income: '收入',
   transfer: '转账',
+  // Phase 2：专用入口产生，此处仅满足类型完备性
+  repayment: '还款',
+  revaluation: '估值调整',
+  disposal: '处置',
 };
 
 const schema = z

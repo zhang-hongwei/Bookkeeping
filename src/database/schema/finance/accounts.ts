@@ -12,8 +12,8 @@ import {
 /**
  * 账户类型
  * - cash / savings / investment / real_asset：资产类（借方增加，借方正常余额）
- * - credit：信用（负债）类（贷方增加，贷方正常余额，余额表示欠款）
- * - equity：系统权益账户（__income/__expense，仅作复式平衡对腿，user_id='__system__'，不计入净资产）
+ * - credit / mortgage / car_loan / consumer_loan / borrowing：负债类（贷方增加，贷方正常余额，余额表示欠款）
+ * - equity：系统权益账户（__income/__expense/__revaluation，仅作复式平衡对腿，user_id='__system__'，不计入净资产）
  */
 export const ACCOUNT_TYPES = [
   'cash',
@@ -21,6 +21,11 @@ export const ACCOUNT_TYPES = [
   'credit',
   'investment',
   'real_asset',
+  // Phase 2：完整负债类型（贷方正常余额，balance 正值 = 欠款）
+  'mortgage',
+  'car_loan',
+  'consumer_loan',
+  'borrowing',
   'equity',
 ] as const;
 export type AccountType = (typeof ACCOUNT_TYPES)[number];
@@ -33,10 +38,27 @@ export const ASSET_ACCOUNT_TYPES: ReadonlyArray<AccountType> = [
   'real_asset',
 ];
 
+/** 负债类账户（贷方正常余额，余额 = 欠款）。Phase 2 新增贷款类型。 */
+export const LIABILITY_ACCOUNT_TYPES: ReadonlyArray<AccountType> = [
+  'credit',
+  'mortgage',
+  'car_loan',
+  'consumer_loan',
+  'borrowing',
+];
+
+/** 资产类账户（含估值类实物/投资资产，需挂 asset_details）。 */
+export const VALUATION_ACCOUNT_TYPES: ReadonlyArray<AccountType> = [
+  'real_asset',
+  'investment',
+];
+
 /** 系统权益账户类型（user_id 为空，全局共享，用户不可见） */
 export const EQUITY_ACCOUNT_NAMES = {
   income: '__income',
   expense: '__expense',
+  /** Phase 2：未实现损益桶（资产估值变动的对腿，区别于已实现 __income/__expense）。 */
+  revaluation: '__revaluation',
 } as const;
 
 /**

@@ -10,6 +10,7 @@ import {
   financeAccounts,
   entries,
   ASSET_ACCOUNT_TYPES,
+  LIABILITY_ACCOUNT_TYPES,
   type AccountType,
   type EntrySide,
 } from '@/database/schema/finance';
@@ -156,7 +157,8 @@ export function netWorthCents(
   for (const a of accountList) {
     if (!a.includeInNetWorth) continue;
     const cents = toCents(a.balance);
-    net += a.type === 'credit' ? -cents : cents;
+    // Phase 2：负债类（credit + 贷款类型）为负贡献，资产类为正。
+    net += LIABILITY_ACCOUNT_TYPES.includes(a.type) ? -cents : cents;
   }
   return net;
 }

@@ -12,10 +12,24 @@ import { billImports, billImportRows } from './bill-imports';
 import { netWorthSnapshots } from './net-worth-snapshots';
 import { ruleFindings } from './rule-findings';
 import { aiReports } from './ai-reports';
+import { financeAssetDetails } from './asset-details';
+import { financeLiabilityDetails } from './liability-details';
 
-export const financeAccountsRelations = relations(financeAccounts, ({ many }) => ({
-  entries: many(entries),
-}));
+export const financeAccountsRelations = relations(
+  financeAccounts,
+  ({ many, one }) => ({
+    entries: many(entries),
+    // Phase 2：1:1 资产/负债明细（仅部分账户类型挂载）
+    assetDetail: one(financeAssetDetails, {
+      fields: [financeAccounts.id],
+      references: [financeAssetDetails.accountId],
+    }),
+    liabilityDetail: one(financeLiabilityDetails, {
+      fields: [financeAccounts.id],
+      references: [financeLiabilityDetails.accountId],
+    }),
+  }),
+);
 
 export const categoriesRelations = relations(categories, ({ one, many }) => ({
   parent: one(categories, {
@@ -71,3 +85,24 @@ export const aiReportsRelations = relations(aiReports, ({ many }) => ({
 
 // netWorthSnapshots：按 (userId, date) 定位，无外键关系，留空占位以保证 barrel 一致。
 export const netWorthSnapshotsRelations = relations(netWorthSnapshots, () => ({}));
+
+// Phase 2：资产/负债明细 ↔ 账户（1:1）。
+export const financeAssetDetailsRelations = relations(
+  financeAssetDetails,
+  ({ one }) => ({
+    account: one(financeAccounts, {
+      fields: [financeAssetDetails.accountId],
+      references: [financeAccounts.id],
+    }),
+  }),
+);
+
+export const financeLiabilityDetailsRelations = relations(
+  financeLiabilityDetails,
+  ({ one }) => ({
+    account: one(financeAccounts, {
+      fields: [financeLiabilityDetails.accountId],
+      references: [financeAccounts.id],
+    }),
+  }),
+);
