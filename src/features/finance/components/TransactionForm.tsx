@@ -28,6 +28,7 @@ import {
 import { useAccounts } from '../hooks/use-finance';
 import { useCategories } from '../hooks/use-finance';
 import { useCreateTransaction } from '../hooks/use-finance';
+import { useMyFamilies, useFamily } from '../hooks/use-finance';
 import type { TransactionType } from '@/database/schema/finance';
 
 const TYPE_LABELS: Record<TransactionType, string> = {
@@ -49,6 +50,7 @@ const schema = z
     categoryId: z.string().optional(),
     occurredAt: z.string().min(1, { message: '请选择时间' }),
     note: z.string().max(500).optional(),
+    memberId: z.string().optional(),
   })
   .superRefine((val, ctx) => {
     if (val.type === 'transfer' && !val.toAccountId) {
@@ -68,6 +70,10 @@ export function TransactionForm() {
   const { data: accountsData, isLoading: accountsLoading } = useAccounts();
   const { data: categoriesData } = useCategories();
   const createTxn = useCreateTransaction();
+  const { data: familiesData } = useMyFamilies();
+  const myFamilyId = familiesData?.families[0]?.id ?? null;
+  const { data: familyData } = useFamily(myFamilyId);
+  const members = (familyData?.members ?? []).filter((m) => m.role !== 'joint');
 
   const accounts = (accountsData?.accounts ?? []).filter((a) => !a.isArchived);
 
@@ -87,6 +93,7 @@ export function TransactionForm() {
       categoryId: '',
       occurredAt: nowLocalInput(),
       note: '',
+      memberId: '',
     },
   });
 
@@ -107,10 +114,11 @@ export function TransactionForm() {
       occurredAt: values.occurredAt,
       note: values.note || undefined,
       source: 'manual' as const,
+      memberId: values.memberId || undefined,
     };
     createTxn.mutate(payload, {
       onSuccess: () =>
-        reset({ type: values.type, amount: '', accountId: '', toAccountId: '', categoryId: '', occurredAt: nowLocalInput(), note: '' }),
+        reset({ type: values.type, amount: '', accountId: '', toAccountId: '', categoryId: '', occurredAt: nowLocalInput(), note: '', memberId: '' }),
     });
   };
 
@@ -213,6 +221,23 @@ export function TransactionForm() {
                 {categories.map((c) => (
                   <MenuItem key={c.id} value={c.id}>
                     {c.name}
+                  </MenuItem>
+                ))}
+              </TextField>
+            )}
+          />
+        )}
+
+        {members.length > 0 && (
+          <Controller
+            name="memberId"
+            control={control}
+            render={({ field }) => (
+              <TextField {...field} select label="归属成员（家庭）" defaultValue="">
+                <MenuItem value="">不选择</MenuItem>
+                {members.map((m) => (
+                  <MenuItem key={m.id} value={m.id}>
+                    {m.displayName}
                   </MenuItem>
                 ))}
               </TextField>

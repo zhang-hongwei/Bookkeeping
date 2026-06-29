@@ -262,3 +262,39 @@ export function computeHealthScore(findings: FindingData[]): HealthScore {
 
   return { total: total.toFixed(2), dimensions: dims };
 }
+
+// ============ 集中度预警（Phase 3，US4，FR-007/SC-005）============
+
+export interface ConcentrationAlert {
+  code: 'CONCENTRATION';
+  severity: 'warn';
+  message: string;
+  threshold: string;
+  ratio: string;
+}
+
+/**
+ * 纯函数：单一持仓集中度预警。
+ * - 取所有持仓中最大单一市值占比；超过阈值（默认 60%，可配）→ 返回 warn 提示。
+ * - **仅提示，不代为操作**（设计 §9）；阈值可配（research.md R9）。
+ * - 总市值为 0 或持仓不足 → 无预警。
+ */
+export function computeConcentrationAlert(
+  positions: ReadonlyArray<{ marketValue: string }>,
+  threshold = 0.6,
+): ConcentrationAlert | null {
+  const total = positions.reduce((s, p) => s + toCents(p.marketValue), 0);
+  if (total <= 0 || positions.length === 0) return null;
+  const max = positions.reduce((m, p) => Math.max(m, toCents(p.marketValue)), 0);
+  const ratio = max / total;
+  if (ratio <= threshold) return null;
+  return {
+    code: 'CONCENTRATION',
+    severity: 'warn',
+    message: `单一持仓占比 ${(ratio * 100).toFixed(1)}% 超过阈值 ${(
+      threshold * 100
+    ).toFixed(0)}%，集中度偏高（仅提示，不代为操作）`,
+    threshold: threshold.toFixed(6),
+    ratio: ratio.toFixed(6),
+  };
+}

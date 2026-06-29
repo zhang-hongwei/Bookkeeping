@@ -23,6 +23,8 @@ export interface AccountDTO {
   includeInNetWorth: boolean;
   isArchived: boolean;
   systemKey: string | null;
+  /** Phase 4：家庭共享范围（shared 并入家庭视图；private 仅个人可见）。 */
+  visibility: 'shared' | 'private';
   createdAt: string;
   updatedAt: string;
 }
@@ -327,6 +329,8 @@ export interface CreateTransactionPayload {
   occurredAt?: string;
   note?: string;
   source?: TransactionSource;
+  /** Phase 4：家庭归属（family_members.id，含 joint）。 */
+  memberId?: string | null;
 }
 
 export interface CreateAccountPayload {
@@ -338,8 +342,156 @@ export interface CreateAccountPayload {
   includeInNetWorth?: boolean;
 }
 
-async function http<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, {
+// ===== Phase 3：投资持仓 / 买卖 / 品种 / 表现 / 配置 / 定投 =====
+
+export type InstrumentType = 'stock' | 'fund' | 'bond' | 'gold' | 'etf' | 'reits' | 'crypto';
+export type PriceSource = 'manual' | 'market' | 'estimate';
+
+export interface PositionDetailDTO {
+  positionId: string;
+  instrumentCode: string;
+  instrumentType: InstrumentType;
+  quantity: string;
+  costPrice: string;
+  currentPrice: string;
+  priceSource: PriceSource;
+  lastPriceAt: string | null;
+  currency: string;
+  estimateConfidence: EstimateConfidence;
+  isClosed: boolean;
+  cost: string;
+  marketValue: string;
+  pnl: string;
+  pnlRate: string | null;
+}
+
+export interface PositionDTO {
+  id: string;
+  name: string;
+  type: 'investment';
+  balance: string;
+  includeInNetWorth: boolean;
+  isArchived: boolean;
+  position: PositionDetailDTO;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BuyResultDTO {
+  transaction: { id: string; type: 'transfer'; amount: string; occurredAt: string };
+  position: PositionDTO;
+}
+
+export interface SellResultDTO {
+  transaction: { id: string; type: 'disposal'; amount: string; occurredAt: string };
+  realizedPnl: string;
+  position: PositionDTO;
+}
+
+export interface DividendResultDTO {
+  transaction: { id: string; type: string; amount: string; occurredAt: string };
+  position: PositionDTO;
+}
+
+export interface RevaluePositionResultDTO {
+  transaction: { id: string; type: 'revaluation'; amount: string; occurredAt: string } | null;
+  position: PositionDTO;
+}
+
+export interface InstrumentDTO {
+  id: string;
+  code: string;
+  type: InstrumentType;
+  name: string | null;
+  latestPrice: string | null;
+  priceSource: PriceSource;
+  priceUpdatedAt: string | null;
+  isStale: boolean;
+  currency: string;
+}
+
+export interface InstrumentQuoteDTO {
+  code: string;
+  type: InstrumentType;
+  latestPrice: string | null;
+  priceSource: PriceSource;
+  priceUpdatedAt: string | null;
+  isStale: boolean;
+}
+
+export interface PerformanceDTO {
+  marketValue: string;
+  cost: string;
+  pnl: string;
+  pnlRate: string | null;
+  totalInvested: string;
+  irr: { annualizedRate: string | null; converged: boolean; reason?: string; asOf: string };
+}
+
+export interface AllocationItemDTO {
+  instrumentType: InstrumentType;
+  marketValue: string;
+  ratio: string;
+}
+
+export interface AllocationDTO {
+  items: AllocationItemDTO[];
+  total: string;
+  alerts: { code: string; severity: string; message: string; threshold: string }[];
+}
+
+export interface DcaPlanDTO {
+  id: string;
+  instrumentCode: string;
+  instrumentType: InstrumentType;
+  amount: string | null;
+  frequency: 'monthly' | 'biweekly' | 'weekly';
+  dayOfPeriod: number | null;
+  cashAccountId: string | null;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreatePositionPayload {
+  name: string;
+  instrumentCode: string;
+  instrumentType: InstrumentType;
+  currency?: string;
+  includeInNetWorth?: boolean;
+}
+
+export interface BuyPayload {
+  cashAccountId: string;
+  shares: string;
+  price: string;
+  fee?: string;
+  occurredAt?: string;
+  note?: string;
+  dcaPlanId?: string;
+}
+
+export interface SellPayload {
+  cashAccountId: string;
+  shares: string;
+  price: string;
+  fee?: string;
+  tax?: string;
+  occurredAt?: string;
+  note?: string;
+}
+
+export interface CreateDcaPlanPayload {
+  instrumentCode: string;
+  instrumentType: InstrumentType;
+  amount?: string;
+  frequency?: 'monthly' | 'biweekly' | 'weekly';
+  dayOfPeriod?: number;
+  cashAccountId?: string | null;
+  active?: boolean;
+}
+
+async function http<T>(url: string, init?: RequestInit): Promise<T> {  const res = await fetch(url, {
     ...init,
     headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
   });
@@ -353,6 +505,54 @@ async function http<T>(url: string, init?: RequestInit): Promise<T> {
   }
   return data as T;
 }
+
+// ===== Phase 4：家庭财务 DTO =====
+export interface FamilyDTO {
+  id: string;
+  name: string;
+  createdByUserId: string;
+  defaultCurrency: string;
+  createdAt: string;
+  /** active 成员数（含 self，不含 joint）。 */
+  memberCount: number;
+}
+export interface FamilyMemberDTO {
+  id: string;
+  familyId: string;
+  userId: string | null;
+  displayName: string;
+  role: string;
+  shareMode: string;
+  status: string;
+  defaultView: string;
+  joinedAt: string;
+  leftAt: string | null;
+}
+export interface FamilyNetWorthDTO {
+  totalAssets: string;
+  totalLiabilities: string;
+  netWorth: string;
+  breakdown: Record<string, string>;
+  /** `{ [memberId]: netWorth }`。 */
+  memberBreakdown: Record<string, string>;
+}
+export interface FamilyCurvePointDTO {
+  date: string;
+  netWorth: string;
+  memberBreakdown: Record<string, string>;
+}
+export interface MemberProfileDTO {
+  memberId: string;
+  displayName: string;
+  role: string;
+  income: string;
+  expense: string;
+  surplus: string;
+  topCategories: { categoryId: string | null; name: string; amount: string }[];
+}
+export type FamilyMemberRoleBody = 'partner' | 'child' | 'parent' | 'other';
+export type ShareModeBody = 'shared' | 'private_by_default';
+export type DefaultViewBody = 'personal' | 'family';
 
 const BASE = '/api/finance';
 
@@ -517,4 +717,164 @@ export const financeApi = {
   },
   regenerateReport: (id: string) =>
     http<GenerateReportResult>(`${BASE}/reports/${id}/regenerate`, { method: 'POST' }),
+
+  // ===== Phase 3：投资 =====
+  listPositions: (params?: { instrumentType?: InstrumentType; includeClosed?: boolean }) => {
+    const qs = new URLSearchParams();
+    if (params?.instrumentType) qs.set('instrumentType', params.instrumentType);
+    if (params?.includeClosed) qs.set('includeClosed', 'true');
+    const query = qs.toString();
+    return http<{ items: PositionDTO[] }>(`${BASE}/positions${query ? `?${query}` : ''}`);
+  },
+  createPosition: (payload: CreatePositionPayload) =>
+    http<{ position: PositionDTO }>(`${BASE}/positions`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  updatePosition: (id: string, payload: Partial<CreatePositionPayload> & { estimateConfidence?: EstimateConfidence }) =>
+    http<{ position: PositionDTO }>(`${BASE}/positions/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+  buyPosition: (id: string, payload: BuyPayload) =>
+    http<BuyResultDTO>(`${BASE}/positions/${id}/buy`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  sellPosition: (id: string, payload: SellPayload) =>
+    http<SellResultDTO>(`${BASE}/positions/${id}/sell`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  dividendPosition: (
+    id: string,
+    payload:
+      | { kind: 'cash'; cashAccountId: string; amount: string; note?: string; occurredAt?: string }
+      | { kind: 'reinvest'; shares: string; price: string; note?: string; occurredAt?: string },
+  ) =>
+    http<DividendResultDTO>(`${BASE}/positions/${id}/dividend`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  revaluePosition: (
+    id: string,
+    payload: { currentPrice: string; source?: PriceSource; fetchedAt?: string },
+  ) =>
+    http<RevaluePositionResultDTO>(`${BASE}/positions/${id}/revalue`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  getPositionPerformance: (id: string, asOf?: string) => {
+    const qs = asOf ? `?asOf=${asOf}` : '';
+    return http<PerformanceDTO>(`${BASE}/positions/${id}/performance${qs}`);
+  },
+  listInstruments: (type?: InstrumentType) => {
+    const qs = type ? `?type=${type}` : '';
+    return http<{ items: InstrumentDTO[] }>(`${BASE}/instruments${qs}`);
+  },
+  upsertManualPrice: (
+    payload: { code: string; type: InstrumentType; name?: string; latestPrice: string },
+  ) =>
+    http<{ instrument: InstrumentDTO }>(`${BASE}/instruments`, {
+      method: 'POST',
+      body: JSON.stringify({ ...payload, source: 'manual' }),
+    }),
+  getInstrumentQuote: (code: string, type: InstrumentType) => {
+    const qs = new URLSearchParams({ type });
+    return http<InstrumentQuoteDTO>(`${BASE}/instruments/${code}/quote?${qs.toString()}`);
+  },
+  getAllocation: (view?: 'by_type') => {
+    const qs = view ? `?view=${view}` : '';
+    return http<AllocationDTO>(`${BASE}/allocation${qs}`);
+  },
+  listDcaPlans: () => http<{ items: DcaPlanDTO[] }>(`${BASE}/dca-plans`),
+  createDcaPlan: (payload: CreateDcaPlanPayload) =>
+    http<{ plan: DcaPlanDTO }>(`${BASE}/dca-plans`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  // ===== Phase 4：家庭财务 =====
+  listMyFamilies: () => http<{ families: FamilyDTO[] }>(`${BASE}/families`),
+  createFamily: (payload: { name: string; defaultCurrency?: string }) =>
+    http<{ family: FamilyDTO; members: FamilyMemberDTO[] }>(`${BASE}/families`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  getFamily: (id: string, includeLeft = false) => {
+    const qs = includeLeft ? '?include_left=1' : '';
+    return http<{ family: FamilyDTO; members: FamilyMemberDTO[] }>(
+      `${BASE}/families/${id}${qs}`,
+    );
+  },
+  updateFamily: (id: string, payload: { name: string }) =>
+    http<{ family: FamilyDTO }>(`${BASE}/families/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+  dissolveFamily: (id: string) =>
+    http<{ ok: boolean }>(`${BASE}/families/${id}`, { method: 'DELETE' }),
+  listFamilyMembers: (id: string, includeLeft = false) => {
+    const qs = includeLeft ? '?include_left=1' : '';
+    return http<{ members: FamilyMemberDTO[] }>(`${BASE}/families/${id}/members${qs}`);
+  },
+  addFamilyMember: (
+    id: string,
+    payload: {
+      userId?: string | null;
+      displayName: string;
+      role: FamilyMemberRoleBody;
+      shareMode?: ShareModeBody;
+    },
+  ) =>
+    http<{ member: FamilyMemberDTO }>(`${BASE}/families/${id}/members`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  updateFamilyMember: (
+    familyId: string,
+    memberId: string,
+    payload: {
+      displayName?: string;
+      role?: FamilyMemberRoleBody;
+      shareMode?: ShareModeBody;
+      defaultView?: DefaultViewBody;
+    },
+  ) =>
+    http<{ member: FamilyMemberDTO }>(
+      `${BASE}/families/${familyId}/members/${memberId}`,
+      { method: 'PATCH', body: JSON.stringify(payload) },
+    ),
+  leaveFamily: (familyId: string, memberId: string) =>
+    http<{ member: FamilyMemberDTO }>(
+      `${BASE}/families/${familyId}/members/${memberId}`,
+      { method: 'DELETE' },
+    ),
+  getFamilyNetWorth: (id: string, view?: 'high' | 'all') => {
+    const qs = view ? `?view=${view}` : '';
+    return http<{ netWorth: FamilyNetWorthDTO }>(`${BASE}/families/${id}/net-worth${qs}`);
+  },
+  getFamilyCurve: (id: string, from: string, to: string) => {
+    const qs = new URLSearchParams({ from, to });
+    return http<{ points: FamilyCurvePointDTO[] }>(
+      `${BASE}/families/${id}/net-worth/curve?${qs.toString()}`,
+    );
+  },
+  getMemberProfile: (
+    familyId: string,
+    memberId: string,
+    range?: { from?: string; to?: string },
+  ) => {
+    const qs = new URLSearchParams();
+    if (range?.from) qs.set('from', range.from);
+    if (range?.to) qs.set('to', range.to);
+    return http<{ profile: MemberProfileDTO }>(
+      `${BASE}/families/${familyId}/members/${memberId}/profile?${qs.toString()}`,
+    );
+  },
+  updateAccountVisibility: (id: string, visibility: 'shared' | 'private') =>
+    http<{ account: AccountDTO }>(`${BASE}/accounts/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ visibility }),
+    }),
 };

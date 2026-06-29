@@ -11,6 +11,8 @@ import {
   deleteTransaction,
   LedgerInvariantError,
 } from '@/services/finance/ledger.service';
+import { assertMemberBelongsToCallerFamily } from '@/services/finance/family.service';
+import { ShareScopeError } from '@/services/finance/balance.service';
 import { transactionRepository } from '@/repositories/finance/transaction.repository';
 
 function parseDate(value: string | null | undefined): Date | undefined {
@@ -53,6 +55,10 @@ export async function PATCH(
     const v = parsed.data;
 
     try {
+      // Phase 4：若改归属，校验 memberId 属于调用者所在家庭
+      if (v.memberId) {
+        await assertMemberBelongsToCallerFamily(userId, v.memberId);
+      }
       const { transaction } = await patchTransaction(userId, id, {
         type: v.type,
         amount: v.amount,
@@ -62,12 +68,16 @@ export async function PATCH(
         occurredAt: parseDate(v.occurredAt),
         note: v.note,
         source: v.source,
+        memberId: v.memberId,
       });
       const withEntries = await transactionRepository(userId).findById(transaction.id);
       return NextResponse.json({
         transaction: withEntries ?? { ...transaction, entries: [] },
       });
     } catch (err) {
+      if (err instanceof ShareScopeError) {
+        return NextResponse.json({ error: err.message, code: 'FORBIDDEN' }, { status: 403 });
+      }
       if (err instanceof LedgerInvariantError) {
         const status = err.message.includes('不存在') ? 404 : 422;
         return NextResponse.json(

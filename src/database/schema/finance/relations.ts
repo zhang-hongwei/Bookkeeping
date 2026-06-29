@@ -14,6 +14,12 @@ import { ruleFindings } from './rule-findings';
 import { aiReports } from './ai-reports';
 import { financeAssetDetails } from './asset-details';
 import { financeLiabilityDetails } from './liability-details';
+import { financePositions } from './positions';
+import { financeInstruments } from './instruments';
+import { financeInvestmentTrades } from './investment-trades';
+import { financeDcaPlans } from './dca-plans';
+import { financeFamilies, financeFamilyMembers } from './families';
+import { financeFamilyNetWorthSnapshots } from './family-snapshots';
 
 export const financeAccountsRelations = relations(
   financeAccounts,
@@ -27,6 +33,11 @@ export const financeAccountsRelations = relations(
     liabilityDetail: one(financeLiabilityDetails, {
       fields: [financeAccounts.id],
       references: [financeLiabilityDetails.accountId],
+    }),
+    // Phase 3：1:1 投资持仓（仅 investment 账户）
+    position: one(financePositions, {
+      fields: [financeAccounts.id],
+      references: [financePositions.accountId],
     }),
   }),
 );
@@ -45,6 +56,11 @@ export const transactionsRelations = relations(transactions, ({ one, many }) => 
   category: one(categories, {
     fields: [transactions.categoryId],
     references: [categories.id],
+  }),
+  // Phase 4：归属成员（谁花/谁赚，含 joint；可空）。
+  attributedMember: one(financeFamilyMembers, {
+    fields: [transactions.memberId],
+    references: [financeFamilyMembers.id],
   }),
   entries: many(entries),
 }));
@@ -103,6 +119,72 @@ export const financeLiabilityDetailsRelations = relations(
     account: one(financeAccounts, {
       fields: [financeLiabilityDetails.accountId],
       references: [financeAccounts.id],
+    }),
+  }),
+);
+
+// Phase 3：投资持仓 / 品种目录 / 投资交易 / 定投计划
+
+export const financePositionsRelations = relations(financePositions, ({ one, many }) => ({
+  account: one(financeAccounts, {
+    fields: [financePositions.accountId],
+    references: [financeAccounts.id],
+  }),
+  trades: many(financeInvestmentTrades),
+}));
+
+export const financeInvestmentTradesRelations = relations(
+  financeInvestmentTrades,
+  ({ one }) => ({
+    position: one(financePositions, {
+      fields: [financeInvestmentTrades.positionId],
+      references: [financePositions.id],
+    }),
+    transaction: one(transactions, {
+      fields: [financeInvestmentTrades.transactionId],
+      references: [transactions.id],
+    }),
+    dcaPlan: one(financeDcaPlans, {
+      fields: [financeInvestmentTrades.dcaPlanId],
+      references: [financeDcaPlans.id],
+    }),
+  }),
+);
+
+export const financeDcaPlansRelations = relations(financeDcaPlans, ({ one, many }) => ({
+  cashAccount: one(financeAccounts, {
+    fields: [financeDcaPlans.cashAccountId],
+    references: [financeAccounts.id],
+  }),
+  trades: many(financeInvestmentTrades),
+}));
+
+// finance_instruments：instrument_code 为持仓软引用（无硬 FK），仅留占位保证 barrel 一致。
+export const financeInstrumentsRelations = relations(financeInstruments, () => ({}));
+
+// Phase 4：家庭 / 成员 / 家庭快照
+export const financeFamiliesRelations = relations(financeFamilies, ({ many }) => ({
+  members: many(financeFamilyMembers),
+  netWorthSnapshots: many(financeFamilyNetWorthSnapshots),
+}));
+
+export const financeFamilyMembersRelations = relations(
+  financeFamilyMembers,
+  ({ one, many }) => ({
+    family: one(financeFamilies, {
+      fields: [financeFamilyMembers.familyId],
+      references: [financeFamilies.id],
+    }),
+    attributedTransactions: many(transactions),
+  }),
+);
+
+export const financeFamilyNetWorthSnapshotsRelations = relations(
+  financeFamilyNetWorthSnapshots,
+  ({ one }) => ({
+    family: one(financeFamilies, {
+      fields: [financeFamilyNetWorthSnapshots.familyId],
+      references: [financeFamilies.id],
     }),
   }),
 );

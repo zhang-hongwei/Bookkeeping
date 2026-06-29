@@ -16,6 +16,8 @@ import {
   backfillHistory,
   verifySnapshots,
   computeNetWorthLive,
+  deriveViewNetWorth,
+  type NetWorth,
 } from '@/services/finance/net-worth.service';
 
 describe('computeNetWorthFromAccounts（净资产口径，R1）', () => {
@@ -72,6 +74,35 @@ describe('computeNetWorthAtDatePure（历史重算 + SC-002 转账不改净资�
       { accountId: 'cash', side: 'credit', amount: '500', occurredAt: '2026-12-31' },
     ];
     expect(computeNetWorthAtDatePure(accounts, entries, '2026-06-01').netWorth).toBe('1000.00');
+  });
+});
+
+describe('deriveViewNetWorth（流动性视图，T014 / SC-002 / FR-003）', () => {
+  const nw: NetWorth = {
+    totalAssets: '409000.00', // cash 1000 + savings 5000 + investment 3000 + real_asset 400000
+    totalLiabilities: '200.00',
+    netWorth: '408800.00',
+    breakdown: {
+      cash: '1000.00',
+      savings: '5000.00',
+      investment: '3000.00',
+      real_asset: '400000.00',
+    },
+  };
+
+  it('view=all：原样返回全部家底（含 real_asset 估值点）', () => {
+    const r = deriveViewNetWorth(nw, 'all');
+    expect(r.totalAssets).toBe('409000.00');
+    expect(r.netWorth).toBe('408800.00');
+    expect(r.breakdown.real_asset).toBe('400000.00');
+  });
+
+  it('view=high：仅高流动性，过滤 real_asset，净值 = (cash+savings+investment) − 负债', () => {
+    const r = deriveViewNetWorth(nw, 'high');
+    expect(r.totalAssets).toBe('9000.00'); // 1000 + 5000 + 3000
+    expect(r.netWorth).toBe('8800.00'); // 9000 − 200
+    expect(r.breakdown.real_asset).toBeUndefined(); // 估值点被过滤
+    expect(r.breakdown.cash).toBe('1000.00');
   });
 });
 

@@ -49,9 +49,22 @@ export async function PATCH(
       isArchived: v.isArchived,
       includeInNetWorth: v.includeInNetWorth,
       creditLimit: v.creditLimit,
+      visibility: v.visibility,
     });
     if (!account) {
       return NextResponse.json({ error: '账户不存在', code: 'NOT_FOUND' }, { status: 404 });
+    }
+    // Phase 4：可见性切换影响家庭合并净资产，best-effort 刷新家庭快照
+    if (v.visibility) {
+      try {
+        const { refreshFamilySnapshotsForUser } = await import(
+          '@/services/finance/family-net-worth.service'
+        );
+        const today = new Date().toISOString().slice(0, 10);
+        await refreshFamilySnapshotsForUser(userId, today);
+      } catch {
+        // 家庭快照刷新为可选增强，不阻断账号更新
+      }
     }
     return NextResponse.json({ account });
   } catch (error) {

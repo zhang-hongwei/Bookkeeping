@@ -8,6 +8,7 @@ import {
   timestamp,
 } from 'drizzle-orm/pg-core';
 import { financeAccounts } from './accounts';
+import { financeFamilyMembers } from './families';
 
 /** 交易类型（Phase 2 追加 repayment/revaluation/disposal）。 */
 export const TRANSACTION_TYPES = [
@@ -50,6 +51,12 @@ export const transactions = pgTable('finance_transactions', {
     .default('1.00')
     .notNull(),
   billImportId: uuid('bill_import_id'),
+  // Phase 4：家庭归属维度（谁花/谁赚，指向 family_members.id；含 joint）。
+  // 可空：NULL = 无家庭归属（向后兼容 Phase 0–3 数据与纯个人用户）。
+  // 注意：归属只作用于收支画像，不改变净资产所有权（净资产按账号 owner 聚合）。
+  memberId: uuid('member_id').references(() => financeFamilyMembers.id, {
+    onDelete: 'set null',
+  }),
   // Phase 2：还款本金/利息拆分（仅 type=repayment 填充，其它为 null）。
   // amount = principal + interest；便于「利息支出」报表与拆分追溯。
   principalAmount: decimal('principal_amount', { precision: 18, scale: 2 }),

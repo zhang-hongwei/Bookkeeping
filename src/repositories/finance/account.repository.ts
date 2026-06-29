@@ -12,6 +12,7 @@ import {
   entries,
   type AccountItem,
   type AccountType,
+  type AccountVisibility,
 } from '@/database/schema/finance';
 import { FinanceRepository } from './base';
 
@@ -34,6 +35,8 @@ export interface UpdateAccountPatch {
   isArchived?: boolean;
   includeInNetWorth?: boolean;
   creditLimit?: string | null;
+  /** Phase 4：家庭共享范围（shared 并入家庭视图；private 仅个人可见）。 */
+  visibility?: AccountVisibility;
 }
 
 export class AccountRepository extends FinanceRepository {

@@ -12,6 +12,8 @@ import {
   createTransaction,
   LedgerInvariantError,
 } from '@/services/finance/ledger.service';
+import { assertMemberBelongsToCallerFamily } from '@/services/finance/family.service';
+import { ShareScopeError } from '@/services/finance/balance.service';
 import { transactionRepository } from '@/repositories/finance/transaction.repository';
 import type { TransactionType, TransactionSource } from '@/database/schema/finance';
 
@@ -83,6 +85,10 @@ export async function POST(request: NextRequest) {
     const v = parsed.data;
 
     try {
+      // Phase 4：校验 memberId 归属调用者所在家庭（防伪造）
+      if (v.memberId) {
+        await assertMemberBelongsToCallerFamily(userId, v.memberId);
+      }
       const { transaction } = await createTransaction({
         userId,
         type: v.type,
@@ -93,6 +99,7 @@ export async function POST(request: NextRequest) {
         occurredAt: parseDate(v.occurredAt),
         note: v.note,
         source: v.source,
+        memberId: v.memberId ?? undefined,
       });
       const withEntries = await transactionRepository(userId).findById(transaction.id);
       return NextResponse.json(
@@ -100,6 +107,9 @@ export async function POST(request: NextRequest) {
         { status: 201 },
       );
     } catch (err) {
+      if (err instanceof ShareScopeError) {
+        return NextResponse.json({ error: err.message, code: 'FORBIDDEN' }, { status: 403 });
+      }
       if (err instanceof LedgerInvariantError) {
         return NextResponse.json(
           { error: err.message, code: 'INVARIANT' },

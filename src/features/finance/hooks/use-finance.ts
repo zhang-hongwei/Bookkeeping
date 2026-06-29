@@ -21,6 +21,11 @@ import {
   type EstimateConfidence,
   type ValuationSource,
   type NetWorthView,
+  type CreatePositionPayload,
+  type BuyPayload,
+  type SellPayload,
+  type InstrumentType,
+  type PriceSource,
 } from '../api';
 import type { AccountType, CategoryKind, TransactionType } from '@/database/schema/finance';
 
@@ -392,5 +397,319 @@ export function useReport(id: string | null) {
     queryKey: ['finance', 'report', id],
     queryFn: () => financeApi.getReport(id!),
     enabled: Boolean(id),
+  });
+}
+
+// ===== Phase 3：投资持仓 / 买卖 / 行情 / 表现 / 配置 / 定投 =====
+
+/** 持仓列表（带市值/成本/盈亏/收益率）。 */
+export function usePositions(params?: { instrumentType?: InstrumentType; includeClosed?: boolean }) {
+  return useQuery({
+    queryKey: ['finance', 'positions', params ?? {}],
+    queryFn: () => financeApi.listPositions(params),
+  });
+}
+
+/** 登记持仓。成功后失效持仓 + 账户 + 净资产。 */
+export function useCreatePosition() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: CreatePositionPayload) => financeApi.createPosition(payload),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['finance', 'positions'] });
+      void qc.invalidateQueries({ queryKey: ['finance', 'accounts'] });
+      void qc.invalidateQueries({ queryKey: ['finance', 'net-worth'] });
+    },
+  });
+}
+
+/** 更新持仓元数据（不改市值/份额/成本）。 */
+export function useUpdatePosition() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: string;
+      payload: Partial<CreatePositionPayload> & { estimateConfidence?: EstimateConfidence };
+    }) => financeApi.updatePosition(id, payload),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['finance', 'positions'] });
+    },
+  });
+}
+
+/** 买入（transfer，净资产不变，SC-001）。失效持仓 + 账户 + 净资产 + 交易。 */
+export function useBuyPosition() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: BuyPayload }) =>
+      financeApi.buyPosition(id, payload),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['finance', 'positions'] });
+      void qc.invalidateQueries({ queryKey: ['finance', 'accounts'] });
+      void qc.invalidateQueries({ queryKey: ['finance', 'transactions'] });
+      void qc.invalidateQueries({ queryKey: ['finance', 'net-worth'] });
+    },
+  });
+}
+
+/** 卖出（disposal，实现盈亏）。 */
+export function useSellPosition() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: SellPayload }) =>
+      financeApi.sellPosition(id, payload),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['finance', 'positions'] });
+      void qc.invalidateQueries({ queryKey: ['finance', 'accounts'] });
+      void qc.invalidateQueries({ queryKey: ['finance', 'transactions'] });
+      void qc.invalidateQueries({ queryKey: ['finance', 'net-worth'] });
+    },
+  });
+}
+
+/** 分红（现金/再投资）。 */
+export function useDividendPosition() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: string;
+      payload:
+        | { kind: 'cash'; cashAccountId: string; amount: string; note?: string; occurredAt?: string }
+        | { kind: 'reinvest'; shares: string; price: string; note?: string; occurredAt?: string };
+    }) => financeApi.dividendPosition(id, payload),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['finance', 'positions'] });
+      void qc.invalidateQueries({ queryKey: ['finance', 'accounts'] });
+      void qc.invalidateQueries({ queryKey: ['finance', 'net-worth'] });
+    },
+  });
+}
+
+/** 估值同步（revaluation，FR-008）。 */
+export function useRevaluePosition() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: string;
+      payload: { currentPrice: string; source?: PriceSource; fetchedAt?: string };
+    }) => financeApi.revaluePosition(id, payload),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['finance', 'positions'] });
+      void qc.invalidateQueries({ queryKey: ['finance', 'net-worth'] });
+    },
+  });
+}
+
+/** 持仓表现（市值/盈亏/收益率 + IRR）。 */
+export function usePositionPerformance(id: string | null, enabled = true) {
+  return useQuery({
+    queryKey: ['finance', 'positions', 'performance', id],
+    queryFn: () => financeApi.getPositionPerformance(id!),
+    enabled: Boolean(id) && enabled,
+  });
+}
+
+/** 品种行情缓存列表。 */
+export function useInstruments(type?: InstrumentType) {
+  return useQuery({
+    queryKey: ['finance', 'instruments', type ?? 'all'],
+    queryFn: () => financeApi.listInstruments(type),
+  });
+}
+
+/** 拉取品种实时行情（含降级）。 */
+export function useInstrumentQuote(code: string | null, type: InstrumentType, enabled = true) {
+  return useQuery({
+    queryKey: ['finance', 'instruments', 'quote', code, type],
+    queryFn: () => financeApi.getInstrumentQuote(code!, type),
+    enabled: Boolean(code) && enabled,
+  });
+}
+
+/** 手动录入/修正品种现价（行情降级兜底，SC-004）。 */
+export function useUpsertManualPrice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { code: string; type: InstrumentType; name?: string; latestPrice: string }) =>
+      financeApi.upsertManualPrice(payload),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['finance', 'instruments'] });
+    },
+  });
+}
+
+/** 资产配置（按品种类型）+ 集中度预警。 */
+export function useAllocation(view?: 'by_type') {
+  return useQuery({
+    queryKey: ['finance', 'allocation', view ?? 'by_type'],
+    queryFn: () => financeApi.getAllocation(view),
+  });
+}
+
+/** 定投计划列表。 */
+export function useDcaPlans() {
+  return useQuery({
+    queryKey: ['finance', 'dca-plans'],
+    queryFn: () => financeApi.listDcaPlans(),
+  });
+}
+
+// ===== Phase 4：家庭财务 =====
+
+/** 我的家庭列表（active 成员）。 */
+export function useMyFamilies() {
+  return useQuery({
+    queryKey: ['finance', 'families'],
+    queryFn: () => financeApi.listMyFamilies(),
+  });
+}
+
+/** 家庭详情 + 成员列表。 */
+export function useFamily(familyId: string | null | undefined, includeLeft = false) {
+  return useQuery({
+    queryKey: ['finance', 'families', familyId, { includeLeft }],
+    queryFn: () => financeApi.getFamily(familyId!, includeLeft),
+    enabled: Boolean(familyId),
+  });
+}
+
+export function useCreateFamily() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { name: string; defaultCurrency?: string }) =>
+      financeApi.createFamily(payload),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['finance', 'families'] });
+    },
+  });
+}
+
+export function useUpdateFamily() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) =>
+      financeApi.updateFamily(id, { name }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['finance', 'families'] });
+    },
+  });
+}
+
+export function useDissolveFamily() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => financeApi.dissolveFamily(id),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['finance', 'families'] });
+      void qc.invalidateQueries({ queryKey: ['finance', 'family-net-worth'] });
+    },
+  });
+}
+
+export function useAddFamilyMember() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      familyId,
+      ...payload
+    }: Parameters<typeof financeApi.addFamilyMember>[1] & { familyId: string }) =>
+      financeApi.addFamilyMember(familyId, payload),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['finance', 'families'] });
+    },
+  });
+}
+
+export function useUpdateFamilyMember() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      familyId,
+      memberId,
+      ...payload
+    }: {
+      familyId: string;
+      memberId: string;
+      displayName?: string;
+      role?: 'partner' | 'child' | 'parent' | 'other';
+      shareMode?: 'shared' | 'private_by_default';
+      defaultView?: 'personal' | 'family';
+    }) => financeApi.updateFamilyMember(familyId, memberId, payload),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['finance', 'families'] });
+    },
+  });
+}
+
+/** 成员退出（软删除）。 */
+export function useLeaveFamily() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ familyId, memberId }: { familyId: string; memberId: string }) =>
+      financeApi.leaveFamily(familyId, memberId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['finance', 'families'] });
+      void qc.invalidateQueries({ queryKey: ['finance', 'family-net-worth'] });
+    },
+  });
+}
+
+/** 家庭合并净资产（今日，含 memberBreakdown）。 */
+export function useFamilyNetWorth(
+  familyId: string | null | undefined,
+  view?: 'high' | 'all',
+) {
+  return useQuery({
+    queryKey: ['finance', 'family-net-worth', familyId, view ?? 'all'],
+    queryFn: () => financeApi.getFamilyNetWorth(familyId!, view),
+    enabled: Boolean(familyId),
+  });
+}
+
+/** 家庭净资产曲线。 */
+export function useFamilyCurve(
+  familyId: string | null | undefined,
+  from: string,
+  to: string,
+) {
+  return useQuery({
+    queryKey: ['finance', 'family-net-worth', 'curve', familyId, from, to],
+    queryFn: () => financeApi.getFamilyCurve(familyId!, from, to),
+    enabled: Boolean(familyId),
+  });
+}
+
+/** 成员支出画像（按 memberId 聚合）。 */
+export function useMemberProfile(
+  familyId: string | null | undefined,
+  memberId: string | null | undefined,
+  range?: { from?: string; to?: string },
+) {
+  return useQuery({
+    queryKey: ['finance', 'family', 'profile', familyId, memberId, range ?? {}],
+    queryFn: () => financeApi.getMemberProfile(familyId!, memberId!, range),
+    enabled: Boolean(familyId && memberId),
+  });
+}
+
+/** 切换账号家庭可见性（shared/private）。 */
+export function useUpdateAccountVisibility() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, visibility }: { id: string; visibility: 'shared' | 'private' }) =>
+      financeApi.updateAccountVisibility(id, visibility),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['finance', 'accounts'] });
+      void qc.invalidateQueries({ queryKey: ['finance', 'family-net-worth'] });
+    },
   });
 }

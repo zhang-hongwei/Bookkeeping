@@ -92,3 +92,27 @@ node --env-file=.env scripts/init-finance.mjs   # 建 finance_* 表 + 种子权�
 
 **零幻觉红线**：报告中所有具体数字结论只来自规则引擎 findings，LLM 仅表达、失败降级模板。
 **性能（T046）**：仪表盘首屏读 `computeNetWorthLive`（balance 推导，O(1)）+ 物化快照曲线，非全量聚合。
+
+## Phase 2 增量（003 资产/负债完整化）
+
+把全部家底（房产/车辆/房贷/车贷/信用卡/借款）登记进来，净资产如实反映，复式不变式贯穿资产生命周期：
+
+- **资产/负债明细**（1:1 挂账户）：`asset_details`（成本/估值来源/置信度/估值历史/已处置）、
+  `liability_details`（本金/利率/月供/到期/已还/账单日/还款日）。当前价值/剩余本金 = 账户 `balance`（真相源）。
+- **资产登记/列表**（`asset.service`）：`real_asset`/`investment` 账户 + 明细；当前价值=balance、置信度持久、`includeInNetWorth` 生效。
+- **资产生命周期**（复式，SC-001）：
+  - `revalueAsset`：revaluation 2 腿（资产 ↔ `__revaluation`），balance=新值 + 追加估值历史。
+  - `disposeAsset`：disposal 2–3 腿（现金 +proceeds、资产清零、损益入 `__income`/`__expense`）。
+- **贷款还款**（`ledger.service.recordRepayment`，SC-001）：本金/利息拆分 3 腿
+  （debit 负债 principal、debit `__expense` interest、credit 现金 p+i）；结果：负债 −principal、现金 −(p+i)、
+  净资产仅因利息变化（本金对冲不扭曲）、`paidAmount += principal`。
+- **信用卡账单周期**（`liability.service.getCreditCardPeriod`，SC-004）：按 `[上账单日, 本账单日)` 聚合
+  本期账单/已还/待还 + 还款日倒计时（`dueSoon`/`daysUntilDue`），仅 credit、不自动代扣。
+- **流动性视图**：`/net-worth?view=high|all` —— `high` 过滤 `real_asset` 估值点（仅高流动性），`all` 含全部家底。
+- **负债一致性巡检**（`balance.service.verifyLiabilityConsistency`，T047 防漂移）：
+  对非 credit 贷款校验 `principal − paidAmount == balance`，偏差不自动修复、需人工介入；
+  `POST /api/finance/verify` 同时返回账户余额自愈结果与负债偏差。
+
+**不变式延续**：revalue/dispose/repayment 均经 `assertBalanced`，保证 `Σdebit==Σcredit`、转账与还款本金不扭曲净资产。
+**隔离**：所有 `/assets`、`/liabilities`（含 `[id]/revalue|dispose|repay|billing`）路由经 `requireUserId`，
+service 层 `fetchAssetAccount`/`fetchLiabilityAccount`/`recordRepayment` 全部按 `userId` 作用域，越权视为不存在。

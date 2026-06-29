@@ -26,7 +26,14 @@ import {
 import ArchiveOutlinedIcon from '@mui/icons-material/ArchiveOutlined';
 import UnarchiveOutlinedIcon from '@mui/icons-material/UnarchiveOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import { useAccounts, useUpdateAccount, useDeleteAccount } from '../hooks/use-finance';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import LockOpenOutlinedIcon from '@mui/icons-material/LockOpenOutlined';
+import {
+  useAccounts,
+  useUpdateAccount,
+  useDeleteAccount,
+  useUpdateAccountVisibility,
+} from '../hooks/use-finance';
 import type { AccountDTO } from '../api';
 import type { AccountType } from '@/database/schema/finance';
 
@@ -60,6 +67,7 @@ export function AccountManager() {
   const { data, isLoading } = useAccounts({ includeArchived: true });
   const updateAccount = useUpdateAccount();
   const deleteAccount = useDeleteAccount();
+  const updateVisibility = useUpdateAccountVisibility();
   const [toast, setToast] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<AccountDTO | null>(null);
 
@@ -113,6 +121,23 @@ export function AccountManager() {
                     </Box>
                   </Stack>
                   <Stack direction="row" spacing={0.5}>
+                    <Tooltip title={a.visibility === 'private' ? '设为家庭共享' : '设为仅个人（私房钱，家庭视图不可见）'}>
+                      <IconButton
+                        size="small"
+                        onClick={() =>
+                          updateVisibility.mutate({
+                            id: a.id,
+                            visibility: a.visibility === 'private' ? 'shared' : 'private',
+                          })
+                        }
+                      >
+                        {a.visibility === 'private' ? (
+                          <LockOutlinedIcon fontSize="small" />
+                        ) : (
+                          <LockOpenOutlinedIcon fontSize="small" />
+                        )}
+                      </IconButton>
+                    </Tooltip>
                     <Tooltip title={a.isArchived ? '恢复' : '归档'}>
                       <IconButton
                         size="small"

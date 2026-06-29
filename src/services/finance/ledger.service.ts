@@ -45,12 +45,23 @@ function dayKey(d: Date): string {
 /**
  * best-effort 净资产快照重算：记账/改/删事务提交后刷新 [occurredAt..today] 曲线。
  * 失败仅记日志、不阻断主记账操作（账目正确性优先于曲线刷新）。
+ *
+ * Phase 4：顺带 best-effort 刷新调用者所在家庭的合并快照（动态 import 避免循环依赖，
+ * 家庭不在任何用户时为 no-op）。隐私口径由家庭聚合层保证（仅 shared 账号）。
  */
 async function refreshSnapshots(userId: string, occurredAt: Date): Promise<void> {
   try {
     await refreshSince(userId, dayKey(occurredAt));
   } catch (err) {
     console.error('[ledger] snapshot refresh failed:', err);
+  }
+  try {
+    const { refreshFamilySnapshotsForUser } = await import(
+      './family-net-worth.service'
+    );
+    await refreshFamilySnapshotsForUser(userId, dayKey(occurredAt));
+  } catch {
+    // 家庭刷新为可选增强，不阻断记账
   }
 }
 
@@ -68,6 +79,8 @@ export interface CreateTransactionInput {
   source?: TransactionSource;
   confidence?: string;
   billImportId?: string;
+  /** Phase 4：家庭归属（谁花/谁赚，指向 family_members.id；含 joint）。归属只作用于收支画像。 */
+  memberId?: string;
 }
 
 export interface SystemEquityAccounts {
@@ -222,6 +235,7 @@ export async function createTransaction(
         source: input.source ?? 'manual',
         confidence: input.confidence ?? '1.00',
         billImportId: input.billImportId,
+        memberId: input.memberId,
       })
       .returning();
     await tx.insert(entries).values(
@@ -410,6 +424,7 @@ export async function editTransaction(
         note: input.note,
         source: input.source ?? txn.source,
         confidence: input.confidence ?? txn.confidence,
+        memberId: input.memberId,
         updatedAt: new Date(),
       })
       .where(eq(transactions.id, transactionId))
@@ -431,6 +446,8 @@ export interface PatchTransactionInput {
   note?: string | null;
   source?: TransactionSource;
   confidence?: string;
+  /** Phase 4：家庭归属（null 表示清除归属）。 */
+  memberId?: string | null;
 }
 
 /**
@@ -495,6 +512,10 @@ export async function patchTransaction(
       patch.note !== undefined ? (patch.note ?? undefined) : existing.note ?? undefined,
     source: patch.source ?? existing.source,
     confidence: patch.confidence ?? existing.confidence,
+    memberId:
+      patch.memberId !== undefined
+        ? (patch.memberId ?? undefined)
+        : (existing.memberId ?? undefined),
   };
 
   return editTransaction(userId, transactionId, full);

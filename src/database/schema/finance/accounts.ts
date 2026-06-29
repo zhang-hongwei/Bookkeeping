@@ -53,6 +53,14 @@ export const VALUATION_ACCOUNT_TYPES: ReadonlyArray<AccountType> = [
   'investment',
 ];
 
+/**
+ * 账户可见性（Phase 4，家庭共享范围，research.md 决策3）。
+ * - shared：并入家庭合并视图与家庭净资产。
+ * - private：仅个人可见，家庭视图不可见、不并入家庭净资产（私房钱，SC-002）。
+ */
+export const ACCOUNT_VISIBILITIES = ['shared', 'private'] as const;
+export type AccountVisibility = (typeof ACCOUNT_VISIBILITIES)[number];
+
 /** 系统权益账户类型（user_id 为空，全局共享，用户不可见） */
 export const EQUITY_ACCOUNT_NAMES = {
   income: '__income',
@@ -85,6 +93,11 @@ export const financeAccounts = pgTable('finance_accounts', {
   isArchived: boolean('is_archived').default(false).notNull(),
   // 系统权益账户标记（__income/__expense），普通账户为 null
   systemKey: varchar('system_key', { length: 32 }),
+  // Phase 4：家庭共享范围（默认 shared，使合并视图开箱可用；隐私由加入同意 + 私有开关兑现）
+  visibility: varchar('visibility', { length: 12 })
+    .$type<AccountVisibility>()
+    .default('shared')
+    .notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });

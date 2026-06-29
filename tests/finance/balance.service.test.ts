@@ -15,6 +15,7 @@ import {
   signedDeltaCents,
   LedgerInvariantError,
   netWorthCents,
+  liabilityIsConsistent,
 } from '@/services/finance/balance.service';
 import { toCents, fromCents, addCents } from '@/services/finance/money';
 
@@ -179,5 +180,24 @@ describe('netWorthCents（净资产）', () => {
     ]);
     // 1000 + 5000 = 6000，转账后仍为 6000
     expect(net).toBe(600000);
+  });
+});
+
+describe('liabilityIsConsistent（负债剩余本金不变式，T047 防漂移）', () => {
+  it('贷款：balance == principal − paidAmount 视为一致', () => {
+    expect(liabilityIsConsistent('mortgage', '497000.00', '500000.00', '3000.00')).toBe(true);
+    expect(liabilityIsConsistent('car_loan', '0.00', '100000.00', '100000.00')).toBe(true);
+    expect(liabilityIsConsistent('borrowing', '500.00', '1500.00', '1000.00')).toBe(true);
+  });
+
+  it('贷款：balance ≠ principal − paidAmount 视为漂移', () => {
+    // 期望 497000，实际 496000 → 漂移
+    expect(liabilityIsConsistent('mortgage', '496000.00', '500000.00', '3000.00')).toBe(false);
+  });
+
+  it('信用卡（credit）：欠款随消费滚动，恒视为一致（不适用此不变式）', () => {
+    // credit 无论 balance 与 principal/paid 关系如何，均不判漂移
+    expect(liabilityIsConsistent('credit', '1234.56', '0.00', '0.00')).toBe(true);
+    expect(liabilityIsConsistent('credit', '999.00', '500.00', '100.00')).toBe(true);
   });
 });

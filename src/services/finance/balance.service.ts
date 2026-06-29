@@ -4,10 +4,11 @@
  * 核心不变式：对任意交易，Σ(debit) === Σ(credit)，且每条金额 > 0。
  * 余额 = 初始余额 + Σ(按账户正常方向的有符号分录影响)。
  */
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { db } from '@/database/client';
 import {
   financeAccounts,
+  financeLiabilityDetails,
   entries,
   ASSET_ACCOUNT_TYPES,
   LIABILITY_ACCOUNT_TYPES,
@@ -20,6 +21,18 @@ export class LedgerInvariantError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'LedgerInvariantError';
+  }
+}
+
+/**
+ * 共享范围/越权错误（Phase 4）。
+ * 用于家庭隐私边界：成员越权访问他人「仅个人」数据、伪造归属 memberId、
+ * 对 joint 行执行不可逆操作等。API 层映射为 403 FORBIDDEN（contracts/api.md §0.2）。
+ */
+export class ShareScopeError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ShareScopeError';
   }
 }
 
@@ -161,4 +174,72 @@ export function netWorthCents(
     net += LIABILITY_ACCOUNT_TYPES.includes(a.type) ? -cents : cents;
   }
   return net;
+}
+
+/**
+ * 单条负债是否满足「剩余本金」不变式（防漂移，research R8）：
+ * 对非 credit 贷款，账户 balance 应 == principal − paidAmount。
+ * credit（信用卡）欠款随消费/还款滚动，不适用此不变式，恒视为一致。
+ */
+export function liabilityIsConsistent(
+  type: AccountType,
+  balance: string,
+  principal: string,
+  paidAmount: string,
+): boolean {
+  if (type === 'credit') return true;
+  return toCents(principal) - toCents(paidAmount) === toCents(balance);
+}
+
+export interface LiabilityInconsistency {
+  accountId: string;
+  /** 期望剩余本金 = principal − paidAmount。 */
+  expected: string;
+  /** 物化账户 balance。 */
+  stored: string;
+  /** 偏差（stored − expected）。 */
+  diff: string;
+}
+
+/**
+ * 批量校验某用户非 credit 负债的「剩余本金」一致性（principal − paidAmount == balance）；
+ * 返回偏差项（不自动修复——负债明细与 balance 漂移需人工介入，调用方应据返回值告警）。
+ * 与 verifyAll 对称：verifyAll 校验「账户余额 vs 分录」自洽，本函数校验「负债明细 vs 余额」自洽。
+ */
+export async function verifyLiabilityConsistency(
+  userId: string,
+): Promise<LiabilityInconsistency[]> {
+  const rows = await db
+    .select({
+      accountId: financeAccounts.id,
+      type: financeAccounts.type,
+      balance: financeAccounts.balance,
+      principal: financeLiabilityDetails.principal,
+      paidAmount: financeLiabilityDetails.paidAmount,
+    })
+    .from(financeAccounts)
+    .innerJoin(
+      financeLiabilityDetails,
+      eq(financeLiabilityDetails.accountId, financeAccounts.id),
+    )
+    .where(
+      and(
+        eq(financeAccounts.userId, userId),
+        inArray(financeAccounts.type, [...LIABILITY_ACCOUNT_TYPES]),
+      ),
+    );
+
+  const mismatches: LiabilityInconsistency[] = [];
+  for (const r of rows) {
+    if (liabilityIsConsistent(r.type, r.balance, r.principal, r.paidAmount)) continue;
+    const expectedCents = toCents(r.principal) - toCents(r.paidAmount);
+    const storedCents = toCents(r.balance);
+    mismatches.push({
+      accountId: r.accountId,
+      expected: fromCents(expectedCents),
+      stored: r.balance,
+      diff: fromCents(storedCents - expectedCents),
+    });
+  }
+  return mismatches;
 }

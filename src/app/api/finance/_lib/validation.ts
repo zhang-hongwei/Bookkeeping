@@ -28,6 +28,8 @@ const transactionBase = z.object({
   occurredAt: z.string().optional(),
   note: z.string().max(500).optional(),
   source: z.enum(['manual', 'import', 'nl', 'ocr']).optional(),
+  /** Phase 4：家庭归属（family_members.id，含 joint；null=无归属/清除）。 */
+  memberId: z.string().nullable().optional(),
 });
 
 export const createTransactionSchema = transactionBase.superRefine((val, ctx) => {
@@ -93,6 +95,8 @@ export const patchAccountSchema = z.object({
   isArchived: z.boolean().optional(),
   includeInNetWorth: z.boolean().optional(),
   creditLimit: z.string().nullable().optional(),
+  /** Phase 4：家庭共享范围。 */
+  visibility: z.enum(['shared', 'private']).optional(),
 });
 export type PatchAccountBody = z.infer<typeof patchAccountSchema>;
 
@@ -191,3 +195,175 @@ export const createCategorySchema = z.object({
   keywords: z.array(z.string()).optional(),
 });
 export type CreateCategoryBody = z.infer<typeof createCategorySchema>;
+
+// ===== Phase 3：投资持仓 / 买卖 / 分红 / 估值 / 品种 / 配置 / 定投 =====
+
+/** 投资品种类型（FR-001）。 */
+export const instrumentTypeEnum = z.enum([
+  'stock',
+  'fund',
+  'bond',
+  'gold',
+  'etf',
+  'reits',
+  'crypto',
+]);
+export type InstrumentTypeBody = z.infer<typeof instrumentTypeEnum>;
+
+/** 正份额/数量字符串（高精度，>0）。 */
+const positiveShares = z
+  .string()
+  .refine((s) => Number(s) > 0, { message: '份额必须为正' });
+
+/** 非负金额（费用/税 ≥0）。 */
+const nonNegativeAmountBody = moneyString.refine((s) => Number(s) >= 0, {
+  message: '金额不可为负',
+});
+
+/** 正价格字符串（>0）。 */
+const positivePrice = z.string().refine((s) => Number(s) > 0, {
+  message: '单价必须为正',
+});
+
+export const createPositionSchema = z.object({
+  name: z.string().min(1).max(100),
+  instrumentCode: z.string().min(1).max(32),
+  instrumentType: instrumentTypeEnum,
+  currency: z.string().max(8).optional(),
+  includeInNetWorth: z.boolean().optional(),
+});
+export type CreatePositionBody = z.infer<typeof createPositionSchema>;
+
+export const patchPositionSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  estimateConfidence: z.enum(['high', 'medium', 'low']).optional(),
+  includeInNetWorth: z.boolean().optional(),
+});
+export type PatchPositionBody = z.infer<typeof patchPositionSchema>;
+
+export const buySchema = z.object({
+  cashAccountId: z.string().min(1),
+  shares: positiveShares,
+  price: positivePrice,
+  fee: nonNegativeAmountBody.default('0'),
+  occurredAt: z.string().optional(),
+  note: z.string().max(500).optional(),
+  dcaPlanId: z.string().optional(),
+});
+export type BuyBody = z.infer<typeof buySchema>;
+
+export const sellSchema = z.object({
+  cashAccountId: z.string().min(1),
+  shares: positiveShares,
+  price: positivePrice,
+  fee: nonNegativeAmountBody.default('0'),
+  tax: nonNegativeAmountBody.default('0'),
+  occurredAt: z.string().optional(),
+  note: z.string().max(500).optional(),
+});
+export type SellBody = z.infer<typeof sellSchema>;
+
+export const dividendSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('cash'),
+    cashAccountId: z.string().min(1),
+    amount: positiveAmount,
+    occurredAt: z.string().optional(),
+    note: z.string().max(500).optional(),
+  }),
+  z.object({
+    kind: z.literal('reinvest'),
+    shares: positiveShares,
+    price: positivePrice,
+    occurredAt: z.string().optional(),
+    note: z.string().max(500).optional(),
+  }),
+]);
+export type DividendBody = z.infer<typeof dividendSchema>;
+
+export const revaluePositionSchema = z.object({
+  currentPrice: z
+    .string()
+    .refine((s) => Number(s) >= 0, { message: '现价不可为负' }),
+  source: z.enum(['manual', 'market', 'estimate']).optional(),
+  fetchedAt: z.string().optional(),
+});
+export type RevaluePositionBody = z.infer<typeof revaluePositionSchema>;
+
+export const upsertManualPriceSchema = z.object({
+  code: z.string().min(1).max(32),
+  type: instrumentTypeEnum,
+  name: z.string().max(128).optional(),
+  latestPrice: z
+    .string()
+    .refine((s) => Number(s) >= 0, { message: '价格不可为负' }),
+});
+export type UpsertManualPriceBody = z.infer<typeof upsertManualPriceSchema>;
+
+export const performanceQuerySchema = z.object({
+  asOf: z.string().optional(),
+});
+export type PerformanceQuery = z.infer<typeof performanceQuerySchema>;
+
+export const allocationViewSchema = z.enum(['by_type']).default('by_type');
+export type AllocationViewParam = z.infer<typeof allocationViewSchema>;
+
+export const createDcaPlanSchema = z.object({
+  instrumentCode: z.string().min(1).max(32),
+  instrumentType: instrumentTypeEnum,
+  amount: nonNegativeAmountBody.optional(),
+  frequency: z.enum(['monthly', 'biweekly', 'weekly']).optional(),
+  dayOfPeriod: z.number().int().min(1).max(31).optional(),
+  cashAccountId: z.string().nullable().optional(),
+  active: z.boolean().optional(),
+});
+export type CreateDcaPlanBody = z.infer<typeof createDcaPlanSchema>;
+
+// ===== Phase 4：家庭财务 =====
+
+/** 家庭成员角色（用户可设；self/joint 由系统管理，不在此）。 */
+const familyMemberRoleBody = z.enum(['partner', 'child', 'parent', 'other']);
+
+export const createFamilySchema = z.object({
+  name: z.string().min(1).max(100),
+  defaultCurrency: z.string().max(8).optional(),
+});
+export type CreateFamilyBody = z.infer<typeof createFamilySchema>;
+
+export const updateFamilySchema = z.object({
+  name: z.string().min(1).max(100),
+});
+export type UpdateFamilyBody = z.infer<typeof updateFamilySchema>;
+
+/** 添加成员（形态 A：邀请已注册用户 userId；形态 B：预占槽位，仅 displayName + role）。 */
+export const addMemberSchema = z.object({
+  userId: z.string().nullable().optional(),
+  displayName: z.string().min(1).max(50),
+  role: familyMemberRoleBody,
+  shareMode: z.enum(['shared', 'private_by_default']).optional(),
+});
+export type AddMemberBody = z.infer<typeof addMemberSchema>;
+
+export const updateMemberSchema = z.object({
+  displayName: z.string().min(1).max(50).optional(),
+  role: familyMemberRoleBody.optional(),
+  shareMode: z.enum(['shared', 'private_by_default']).optional(),
+  defaultView: z.enum(['personal', 'family']).optional(),
+});
+export type UpdateMemberBody = z.infer<typeof updateMemberSchema>;
+
+export const memberProfileQuerySchema = z.object({
+  from: z.string().optional(),
+  to: z.string().optional(),
+});
+export type MemberProfileQuery = z.infer<typeof memberProfileQuerySchema>;
+
+export const familyCurveQuerySchema = z.object({
+  from: z.string().min(1),
+  to: z.string().min(1),
+});
+export type FamilyCurveQuery = z.infer<typeof familyCurveQuerySchema>;
+
+/** 账户可见性（家庭共享范围）。 */
+export const accountVisibilitySchema = z.enum(['shared', 'private']);
+export type AccountVisibilityBody = z.infer<typeof accountVisibilitySchema>;
