@@ -1,0 +1,133 @@
+{
+  "header": {
+    "title": "API Playground",
+    "breadcrumb": "Home / API Playground",
+    "sendRequest": "Send Request",
+    "sending": "Sending...",
+    "apiKey": "API Key",
+    "copyApiKey": "Click to copy API Key"
+  },
+  "form": {
+    "title": "API Request Configuration",
+    "description": "Configure parameters and send requests to test ASIN Data API",
+    "selectApi": "Choose API",
+    "selectApiTooltip": "Select the API type to test",
+    "selectApiPlaceholder": "Product Data API /request",
+    "type": "Type",
+    "typeTooltip": "Select the API request type to invoke",
+    "typeHelper": "type",
+    "accountApiInfo": "The Account API doesn't have any parameters to edit. Click \"Send API Request\" to see the response from the Account API endpoint.",
+    "sendRequest": "Send API Request",
+    "sending": "Sending...",
+    "reset": "Reset Form"
+  },
+  "apiOptions": {
+    "productDataApi": "Product Data API",
+    "accountApi": "Account API"
+  },
+  "requestTypes": {
+    "coreRequests": "CORE REQUESTS",
+    "customerFeedback": "CUSTOMER FEEDBACK",
+    "product": {
+      "label": "Product",
+      "description": "Get product basic info, price, ratings, etc."
+    },
+    "search": {
+      "label": "Search",
+      "description": "Search products and get search result list"
+    },
+    "category": {
+      "label": "Category",
+      "description": "Browse products under a category"
+    },
+    "offers": {
+      "label": "Offers",
+      "description": "Get product offers and promotion info"
+    },
+    "reviews": {
+      "label": "Reviews",
+      "description": "Get product user reviews and ratings"
+    }
+  },
+  "fields": {
+    "asin": {
+      "label": "ASIN",
+      "tooltip": "Product unique identifier (Amazon Standard Identification Number)",
+      "placeholder": "e.g.: B08N5WRWNW",
+      "helper": "asin"
+    },
+    "url": {
+      "label": "URL",
+      "tooltip": "Full URL of the product page",
+      "placeholder": "e.g.: https://www.amazon.com/dp/B08N5WRWNW",
+      "helper": "url"
+    },
+    "categoryId": {
+      "label": "Category ID",
+      "tooltip": "Unique identifier for the category",
+      "placeholder": "e.g.: 2478868012",
+      "helper": "category_id"
+    },
+    "keyword": {
+      "label": "Keyword",
+      "tooltip": "Search keyword",
+      "placeholder": "e.g.: laptop",
+      "helper": "keyword"
+    },
+    "amazonDomain": {
+      "label": "Amazon Domain",
+      "tooltip": "Select Amazon site domain",
+      "helper": "amazon_domain"
+    },
+    "language": {
+      "label": "Language",
+      "tooltip": "Select response data language",
+      "helper": "language"
+    },
+    "output": {
+      "label": "Output Format",
+      "tooltip": "Select API response data format",
+      "helper": "output",
+      "json": "JSON",
+      "xml": "XML"
+    },
+    "page": {
+      "label": "Page",
+      "tooltip": "Specify the page number to retrieve",
+      "helper": "page"
+    },
+    "sortBy": {
+      "label": "Sort By",
+      "tooltip": "Select search results sort method",
+      "helper": "sort_by",
+      "featured": "Featured",
+      "priceLowToHigh": "Price: Low to High",
+      "priceHighToLow": "Price: High to Low",
+      "averageReview": "Average Customer Review",
+      "newest": "Newest Arrivals"
+    },
+    "associateId": {
+      "label": "Associate ID",
+      "tooltip": "Amazon Associates affiliate ID (optional)",
+      "placeholder": "e.g.: myassociate-20",
+      "helper": "associate_id"
+    }
+  },
+  "tabs": {
+    "results": "Results",
+    "codeSample": "Code Sample"
+  },
+  "results": {
+    "noData": "No data available",
+    "statusCode": "Status Code",
+    "responseTime": "Response Time",
+    "emptyState": "API response will be displayed here after sending a request",
+    "loading": "Loading data...",
+    "title": "API Response",
+    "copy": "Copy",
+    "copied": "Copied",
+    "copyJson": "Copy JSON",
+    "downloadJson": "Download JSON",
+    "searchPlaceholder": "Search response content..."
+  }
+}

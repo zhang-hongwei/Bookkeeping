@@ -1,0 +1,807 @@
+{
+  "$schema": "./skill-rules.schema.json",
+  "version": "1.0.0",
+  "skills": {
+    "frontend-dev": {
+      "type": "guardrail",
+      "enforcement": "block",
+      "priority": "high",
+      "autoActivate": true,
+      "description": "React 19 + Next.js 16 + MUI v7 前端开发最佳实践",
+      "promptTriggers": {
+        "keywords": [
+          "tailwind",
+          "frontend",
+          "ui",
+          "interface",
+          "page",
+          "layout",
+          "modal",
+          "dialog",
+          "form",
+          "button",
+          "页面",
+          "组件",
+          "界面",
+          "布局",
+          "表单",
+          "react component",
+          "UI",
+          "interface",
+          "MUI",
+          "Material-UI",
+          "Grid",
+          "styling",
+          "frontend",
+          "React"
+        ],
+        "intentPatterns": [
+          "(create|add|build|implement).*?(component|page|ui|interface|modal|form)",
+          "(update|modify|change|fix).*?(ui|frontend|component|style)",
+          "(style|design|theme).*?(component|page)",
+          "创建.*?(页面|组件|界面)",
+          "修改.*?(样式|界面|组件)"
+        ]
+      },
+      "fileTriggers": {
+        "pathPatterns": [
+          "src/components/**/*.tsx",
+          "src/app/**/page.tsx",
+          "src/app/**/layout.tsx",
+          "src/features/**/components/**/*.tsx"
+        ],
+        "extensions": [".tsx", ".jsx"],
+        "contentPatterns": [
+          "@mui/material",
+          "React.FC",
+          "useState",
+          "useEffect",
+          "export.*component",
+          "styled-components"
+        ]
+      },
+      "blockMessage": "⚠️ BLOCKED - Frontend Best Practices Required\n\n📋 REQUIRED ACTION:\n1. Use Skill tool: 'frontend-dev'\n2. Review MUI v7 patterns:\n   - Grid uses size={{}} prop, NOT xs/sm props\n   - Use custom components: Modal (not Dialog), Select (not MUI Select), Toast (not Snackbar)\n3. Check React/TypeScript best practices\n4. Use proper styling patterns (sx > styled() > Tailwind)\n5. Then retry this edit\n\nReason: Enforce MUI v7 compatibility and React best practices\nFile: {file_path}\n\n💡 TIP: Add '// @skip-validation' comment to skip future checks",
+      "skipConditions": {
+        "sessionSkillUsed": true,
+        "fileMarkers": ["@skip-validation", "@skip-frontend-validation"],
+        "envOverride": "SKIP_FRONTEND_GUIDELINES"
+      }
+    },
+
+    "backend-dev": {
+      "type": "development",
+      "priority": "high",
+      "autoActivate": true,
+      "promptTriggers": {
+        "keywords": [
+          "api",
+          "backend",
+          "service",
+          "endpoint",
+          "route",
+          "server",
+          "database",
+          "query",
+          "repository",
+          "后端",
+          "接口",
+          "服务",
+          "路由",
+          "数据库"
+        ],
+        "intentPatterns": [
+          "(create|add|implement).*?(api|endpoint|service|route)",
+          "(handle|process).*?(request|data|business)",
+          "创建.*?(接口|服务|API)",
+          "处理.*?(请求|数据|业务)"
+        ]
+      },
+      "fileTriggers": {
+        "pathPatterns": [
+          "src/app/api/**/*.ts",
+          "src/services/**/*.ts",
+          "src/repositories/**/*.ts"
+        ],
+        "extensions": [".ts"],
+        "contentPatterns": [
+          "NextRequest",
+          "NextResponse",
+          "export.*?async.*?function.*(GET|POST|PUT|DELETE)",
+          "class.*Service",
+          "class.*Repository"
+        ]
+      }
+    },
+
+    "database-dev": {
+      "type": "development",
+      "priority": "high",
+      "autoActivate": true,
+      "promptTriggers": {
+        "keywords": [
+          "database",
+          "drizzle",
+          "postgres",
+          "postgresql",
+          "schema",
+          "table",
+          "migration",
+          "query",
+          "sql",
+          "数据库",
+          "表",
+          "查询",
+          "迁移"
+        ],
+        "intentPatterns": [
+          "(create|add|define).*?(table|schema|model|migration)",
+          "(query|select|insert|update|delete).*?(data|record)",
+          "创建.*?(表|模型|数据库)",
+          "查询.*?(数据|记录)"
+        ]
+      },
+      "fileTriggers": {
+        "pathPatterns": [
+          "src/database/**/*.ts",
+          "drizzle.config.ts",
+          "**/*.sql"
+        ],
+        "extensions": [".sql"],
+        "contentPatterns": [
+          "pgTable",
+          "drizzle-orm",
+          "CREATE TABLE",
+          "ALTER TABLE",
+          "db.select",
+          "db.insert",
+          "db.update",
+          "db.delete"
+        ]
+      }
+    },
+
+    "testing": {
+      "type": "quality",
+      "priority": "medium",
+      "autoActivate": true,
+      "promptTriggers": {
+        "keywords": [
+          "test",
+          "testing",
+          "spec",
+          "jest",
+          "vitest",
+          "unit test",
+          "integration test",
+          "mock",
+          "assert",
+          "测试",
+          "单元测试",
+          "集成测试"
+        ],
+        "intentPatterns": [
+          "(write|create|add).*?test",
+          "test.*?(component|function|service|api)",
+          "编写.*?测试",
+          "测试.*?(组件|函数|服务)"
+        ]
+      },
+      "fileTriggers": {
+        "pathPatterns": [
+          "**/*.test.ts",
+          "**/*.test.tsx",
+          "**/*.spec.ts",
+          "**/*.spec.tsx",
+          "__tests__/**/*"
+        ],
+        "extensions": [".test.ts", ".test.tsx", ".spec.ts", ".spec.tsx"],
+        "contentPatterns": [
+          "describe\\(",
+          "it\\(",
+          "test\\(",
+          "expect\\(",
+          "vi.mock",
+          "render\\("
+        ]
+      }
+    },
+
+    "refactoring": {
+      "type": "quality",
+      "priority": "medium",
+      "autoActivate": true,
+      "promptTriggers": {
+        "keywords": [
+          "refactor",
+          "refactoring",
+          "optimize",
+          "improve",
+          "clean",
+          "cleanup",
+          "restructure",
+          "reorganize",
+          "重构",
+          "优化",
+          "改进",
+          "整理",
+          "清理"
+        ],
+        "intentPatterns": [
+          "(refactor|optimize|improve|clean).*?code",
+          "(extract|split|merge|consolidate).*?(function|component|module)",
+          "重构.*?代码",
+          "优化.*?(性能|结构)"
+        ]
+      },
+      "fileTriggers": {
+        "pathPatterns": ["**/*.ts", "**/*.tsx"],
+        "contentPatterns": [
+          "// TODO.*refactor",
+          "// FIXME",
+          "// HACK",
+          "// @deprecated"
+        ]
+      }
+    },
+
+    "state-management": {
+      "type": "feature",
+      "priority": "medium",
+      "autoActivate": true,
+      "promptTriggers": {
+        "keywords": [
+          "zustand",
+          "store",
+          "state",
+          "global state",
+          "状态",
+          "状态管理",
+          "全局状态"
+        ],
+        "intentPatterns": [
+          "(create|manage|update).*?state",
+          "(implement|add).*?store",
+          "管理.*?状态",
+          "创建.*?store"
+        ]
+      },
+      "fileTriggers": {
+        "pathPatterns": ["src/store/**/*.ts", "src/features/**/store/*.ts"],
+        "contentPatterns": [
+          "create\\(",
+          "zustand",
+          "useStore",
+          "setState",
+          "getState"
+        ]
+      }
+    },
+
+    "form-handling": {
+      "type": "feature",
+      "priority": "low",
+      "autoActivate": false,
+      "promptTriggers": {
+        "keywords": [
+          "form",
+          "validation",
+          "zod",
+          "react-hook-form",
+          "input",
+          "field",
+          "submit",
+          "表单",
+          "验证",
+          "输入",
+          "提交"
+        ],
+        "intentPatterns": [
+          "(create|build|implement).*?form",
+          "(validate|handle).*?(input|submission)",
+          "创建.*?表单",
+          "验证.*?输入"
+        ]
+      },
+      "fileTriggers": {
+        "pathPatterns": ["**/forms/**/*.tsx", "**/*Form.tsx"],
+        "contentPatterns": [
+          "useForm",
+          "register\\(",
+          "handleSubmit",
+          "z.object",
+          "zodResolver"
+        ]
+      }
+    },
+
+    "performance": {
+      "type": "optimization",
+      "priority": "low",
+      "autoActivate": false,
+      "promptTriggers": {
+        "keywords": [
+          "performance",
+          "optimize",
+          "slow",
+          "fast",
+          "speed",
+          "cache",
+          "memo",
+          "lazy",
+          "bundle",
+          "性能",
+          "优化",
+          "缓慢",
+          "缓存"
+        ],
+        "intentPatterns": [
+          "(improve|optimize).*?performance",
+          "(fix|resolve).*?slow",
+          "(reduce|minimize).*?(bundle|load)",
+          "优化.*?性能",
+          "提升.*?速度"
+        ]
+      }
+    },
+
+    "skill-developer": {
+      "type": "meta",
+      "priority": "high",
+      "autoActivate": true,
+      "promptTriggers": {
+        "keywords": [
+          "skill",
+          "skills",
+          "skill-rules",
+          "skill-rules.json",
+          "trigger",
+          "triggers",
+          "activation",
+          "hook",
+          "hooks",
+          "claude code",
+          "技能",
+          "触发",
+          "激活"
+        ],
+        "intentPatterns": [
+          "(create|add|build|implement).*?skill",
+          "(modify|update|change).*?(skill|trigger|rule)",
+          "(debug|troubleshoot|fix).*?(skill|activation|trigger)",
+          "(understand|learn|explain).*?(skill|hook|trigger)",
+          "创建.*?技能",
+          "修改.*?(技能|触发器|规则)",
+          "调试.*?(技能|激活)"
+        ]
+      },
+      "fileTriggers": {
+        "pathPatterns": [
+          ".claude/skills/**/*.md",
+          ".claude/skills/skill-rules.json",
+          ".claude/hooks/**/*.ts"
+        ],
+        "contentPatterns": [
+          "skill-rules.json",
+          "promptTriggers",
+          "fileTriggers",
+          "autoActivate",
+          "intentPatterns"
+        ]
+      }
+    },
+
+    "nextjs": {
+      "type": "development",
+      "priority": "high",
+      "autoActivate": true,
+      "promptTriggers": {
+        "keywords": [
+          "nextjs",
+          "next.js",
+          "server component",
+          "client component",
+          "app router",
+          "use client",
+          "page.tsx",
+          "layout.tsx",
+          "服务端组件",
+          "客户端组件"
+        ],
+        "intentPatterns": [
+          "(create|add|build).*?(page|layout|route)",
+          "(server|client).*?component",
+          "(use client|use server)",
+          "app.*?router",
+          "创建.*?(页面|路由)",
+          "(服务端|客户端).*?组件"
+        ]
+      },
+      "fileTriggers": {
+        "pathPatterns": [
+          "app/**/*.tsx",
+          "app/**/*.ts",
+          "app/**/page.tsx",
+          "app/**/layout.tsx",
+          "next.config.js",
+          "next.config.ts"
+        ],
+        "extensions": [".tsx", ".ts"],
+        "contentPatterns": [
+          "use client",
+          "use server",
+          "export default async function.*?Page",
+          "export default function.*?Layout",
+          "NextRequest",
+          "NextResponse"
+        ]
+      }
+    },
+
+    "supabase-integration": {
+      "type": "integration",
+      "priority": "high",
+      "autoActivate": false,
+      "description": "Supabase 数据库、认证、存储集成最佳实践",
+      "promptTriggers": {
+        "keywords": [
+          "supabase",
+          "supabase auth",
+          "supabase database",
+          "supabase storage",
+          "realtime",
+          "row level security",
+          "RLS",
+          "postgrest"
+        ],
+        "intentPatterns": [
+          "(create|implement|setup|configure).*?supabase",
+          "(auth|authenticate|login|signup).*?supabase",
+          "(query|insert|update|delete).*?supabase",
+          "(upload|download|storage).*?supabase"
+        ]
+      },
+      "fileTriggers": {
+        "pathPatterns": [
+          "src/lib/supabase/**/*.ts",
+          "src/utils/supabase/**/*.ts"
+        ],
+        "contentPatterns": [
+          "@supabase/supabase-js",
+          "createClient",
+          "supabaseUrl",
+          ".from\\(",
+          ".auth.signIn",
+          ".storage."
+        ]
+      }
+    },
+
+    "stripe-integration": {
+      "type": "integration",
+      "priority": "high",
+      "autoActivate": false,
+      "description": "Stripe 支付、订阅、Webhook 集成最佳实践",
+      "promptTriggers": {
+        "keywords": [
+          "stripe",
+          "payment",
+          "checkout",
+          "subscription",
+          "invoice",
+          "webhook",
+          "payment intent",
+          "customer",
+          "price",
+          "product"
+        ],
+        "intentPatterns": [
+          "(create|implement|setup).*?(stripe|payment|checkout)",
+          "(handle|process).*?(payment|subscription|webhook)",
+          "(create|manage).*?(customer|invoice|subscription)"
+        ]
+      },
+      "fileTriggers": {
+        "pathPatterns": [
+          "src/lib/stripe/**/*.ts",
+          "src/app/api/stripe/**/*.ts",
+          "src/app/api/webhooks/stripe/**/*.ts"
+        ],
+        "contentPatterns": [
+          "import.*?stripe",
+          "new Stripe\\(",
+          "stripe.customers",
+          "stripe.checkout",
+          "stripe.subscriptions",
+          "stripe.webhooks",
+          "constructEvent"
+        ]
+      }
+    },
+
+    "clerk-auth": {
+      "type": "integration",
+      "priority": "high",
+      "autoActivate": false,
+      "description": "Clerk 认证和用户管理集成最佳实践",
+      "promptTriggers": {
+        "keywords": [
+          "clerk",
+          "clerk auth",
+          "authentication",
+          "sign in",
+          "sign up",
+          "user management",
+          "middleware protection"
+        ],
+        "intentPatterns": [
+          "(setup|configure).*?clerk",
+          "(protect|secure).*?route",
+          "(manage|handle).*?users",
+          "clerk.*?middleware"
+        ]
+      },
+      "fileTriggers": {
+        "pathPatterns": [
+          "middleware.ts",
+          "app/**/sign-in/**/*.tsx",
+          "app/**/sign-up/**/*.tsx"
+        ],
+        "contentPatterns": [
+          "@clerk/nextjs",
+          "clerkMiddleware",
+          "auth\\(\\)",
+          "currentUser",
+          "useUser",
+          "SignIn",
+          "SignUp"
+        ]
+      }
+    },
+
+    "file-storage": {
+      "type": "integration",
+      "priority": "high",
+      "autoActivate": false,
+      "description": "文件存储抽象层：支持本地、S3、Supabase",
+      "promptTriggers": {
+        "keywords": [
+          "file upload",
+          "storage",
+          "S3",
+          "upload file",
+          "download file",
+          "file management"
+        ],
+        "intentPatterns": [
+          "(upload|store|save).*?file",
+          "(download|retrieve).*?file",
+          "(setup|configure).*?storage",
+          "file.*?management"
+        ]
+      },
+      "fileTriggers": {
+        "pathPatterns": [
+          "**/storage/**/*.ts",
+          "**/lib/storage/**/*.ts"
+        ],
+        "contentPatterns": [
+          "StorageAdapter",
+          "S3Client",
+          "PutObjectCommand"
+        ]
+      }
+    },
+
+    "email-service": {
+      "type": "integration",
+      "priority": "medium",
+      "autoActivate": false,
+      "description": "Resend 和 NodeMailer 邮件发送集成",
+      "promptTriggers": {
+        "keywords": [
+          "email",
+          "resend",
+          "nodemailer",
+          "send email",
+          "transactional email"
+        ],
+        "intentPatterns": [
+          "(send|deliver).*?email",
+          "(setup|configure).*?(resend|nodemailer)",
+          "email.*?template"
+        ]
+      },
+      "fileTriggers": {
+        "pathPatterns": [
+          "**/email/**/*.ts",
+          "**/lib/email/**/*.ts"
+        ],
+        "contentPatterns": [
+          "import.*?resend",
+          "import.*?nodemailer",
+          "sendEmail",
+          "resend.emails.send"
+        ]
+      }
+    },
+
+    "paddle-integration": {
+      "type": "integration",
+      "priority": "medium",
+      "autoActivate": false,
+      "description": "Paddle SaaS 支付和税务合规集成",
+      "promptTriggers": {
+        "keywords": [
+          "paddle",
+          "paddle.js",
+          "paddle billing",
+          "saas billing",
+          "tax compliance"
+        ],
+        "intentPatterns": [
+          "(setup|configure).*?paddle",
+          "paddle.*?(checkout|subscription)",
+          "tax.*?compliance"
+        ]
+      },
+      "fileTriggers": {
+        "pathPatterns": [
+          "**/paddle/**/*.ts",
+          "**/lib/paddle/**/*.ts"
+        ],
+        "contentPatterns": [
+          "@paddle/paddle-js",
+          "initializePaddle",
+          "paddle.Checkout"
+        ]
+      }
+    },
+
+    "neon-database": {
+      "type": "integration",
+      "priority": "medium",
+      "autoActivate": false,
+      "description": "Neon Serverless PostgreSQL 集成",
+      "promptTriggers": {
+        "keywords": [
+          "neon",
+          "neon database",
+          "serverless postgres",
+          "neon integration"
+        ],
+        "intentPatterns": [
+          "(setup|configure).*?neon",
+          "neon.*?database",
+          "serverless.*?postgres"
+        ]
+      },
+      "fileTriggers": {
+        "pathPatterns": [
+          "drizzle.config.ts"
+        ],
+        "contentPatterns": [
+          "@neondatabase/serverless",
+          "neon\\(",
+          "drizzle.*?neon"
+        ]
+      }
+    },
+
+    "skill-creator": {
+      "type": "meta",
+      "priority": "high",
+      "autoActivate": false,
+      "description": "Guide for creating effective skills. Use when creating or updating skills.",
+      "promptTriggers": {
+        "keywords": [
+          "create skill",
+          "new skill",
+          "skill development",
+          "skill design",
+          "skill best practices",
+          "progressive disclosure",
+          "skill structure"
+        ],
+        "intentPatterns": [
+          "(create|build|design).*?skill",
+          "(update|improve|optimize).*?skill",
+          "skill.*?(best practices|guidelines|patterns)"
+        ]
+      },
+      "fileTriggers": {
+        "pathPatterns": [
+          ".claude/skills/**/SKILL.md"
+        ],
+        "contentPatterns": [
+          "^---\\nname:",
+          "description:",
+          "SKILL.md"
+        ]
+      }
+    },
+
+    "mcp-builder": {
+      "type": "development",
+      "priority": "high",
+      "autoActivate": false,
+      "description": "MCP (Model Context Protocol) server development guide. Use when building MCP servers.",
+      "promptTriggers": {
+        "keywords": [
+          "mcp",
+          "model context protocol",
+          "mcp server",
+          "fastmcp",
+          "mcp sdk",
+          "external service integration"
+        ],
+        "intentPatterns": [
+          "(create|build|develop).*?mcp.*?server",
+          "mcp.*?(integration|tool)",
+          "(setup|configure).*?mcp"
+        ]
+      },
+      "fileTriggers": {
+        "pathPatterns": [
+          "**/mcp/**/*.py",
+          "**/mcp/**/*.ts"
+        ],
+        "contentPatterns": [
+          "import.*?fastmcp",
+          "@modelcontextprotocol",
+          "mcp.server"
+        ]
+      }
+    }
+  },
+
+  "activationRules": {
+    "maxActiveSkills": 3,
+    "conflictResolution": "priority",
+    "activationThreshold": 0.7,
+    "deactivationDelay": 300
+  },
+
+  "customRules": [
+    {
+      "name": "Auto-activate testing for test files",
+      "condition": {
+        "filePattern": "\\.(test|spec)\\.(ts|tsx)$"
+      },
+      "action": {
+        "activateSkills": ["testing"]
+      }
+    },
+    {
+      "name": "Activate all dev skills for new features",
+      "condition": {
+        "promptPattern": "(implement|create).*(new feature|功能)"
+      },
+      "action": {
+        "activateSkills": ["frontend-dev", "backend-dev", "database-dev"]
+      }
+    }
+  ],
+
+  "notes": {
+    "enforcement_types": {
+      "suggest": "Skill suggestion appears but doesn't block execution (建议但不阻止)",
+      "block": "Requires skill to be used before proceeding - guardrail mode (强制要求使用 skill)",
+      "warn": "Shows warning but allows proceeding (警告但允许继续)"
+    },
+    "priority_levels": {
+      "critical": "Highest - Always trigger when matched (最高优先级)",
+      "high": "Important - Trigger for most matches (重要)",
+      "medium": "Moderate - Trigger for clear matches (中等)",
+      "low": "Optional - Trigger only for explicit matches (可选)"
+    },
+    "guardrail_info": {
+      "frontend-dev": "Enforces MUI v7 compatibility and custom component usage. Can be skipped by: (1) Using skill in session, (2) Adding @skip-validation comment, (3) Setting SKIP_FRONTEND_GUIDELINES env var",
+      "purpose": "Guardrails prevent common mistakes and ensure best practices are followed"
+    },
+    "customization": {
+      "pathPatterns": "Adjust to match your project structure",
+      "keywords": "Add domain-specific terms relevant to your project",
+      "intentPatterns": "Use regex for flexible user intent matching"
+    }
+  }
+}

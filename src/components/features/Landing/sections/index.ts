@@ -1,0 +1,12 @@
+export { Header } from "./Header";
+export { AnimatedBackground } from "./AnimatedBackground";
+export { HeroSection } from "./HeroSection";
+export { FeaturesSection } from "./FeaturesSection";
+export { PlatformsSection } from "./PlatformsSection";
+export { ProductShowcaseSection } from "./ProductShowcaseSection";
+export { PricingSection } from "./PricingSection";
+export { MetricsSection } from "./MetricsSection";
+export { TestimonialsSection } from "./TestimonialsSection";
+export { DeveloperExperienceSection } from "./DeveloperExperienceSection";
+export { CTAFooterSection } from "./CTAFooterSection";
+export { FooterSection } from "./FooterSection";

@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+/* CSS Layers 顺序配置 - 确保 MUI 和 Tailwind 正确集成 */
+@layer theme, base, mui, components, utilities;
+
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Prevent dark mode flash: sync background with InitColorSchemeScript attribute */
+html[data-color-scheme="dark"] body {
+  background-color: #161C24;
+  color: #FFFFFF;
+}
+
+html[data-color-scheme="light"] body {
+  background-color: #FBFAFC;
+  color: #1C252E;
+}
+
+/* Chat Virtuoso scrollbar hiding */
+.chat-scroller::-webkit-scrollbar {
+  display: none;
+}
+
+/* Chat TextareaAutosize scrollbar hiding */
+textarea::-webkit-scrollbar {
+  display: none;
+}
+
+/* ===== GradiWeave Styles ===== */
+
+:root {
+  --gw-background: #0a0a0a;
+  --gw-foreground: #ededed;
+  color-scheme: dark;
+}
+
+/* Scrollbar styling for gradiweave controls panel */
+.controls-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.controls-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.controls-scroll::-webkit-scrollbar-thumb {
+  background: #404040;
+  border-radius: 3px;
+}
+
+.controls-scroll::-webkit-scrollbar-thumb:hover {
+  background: #525252;
+}
+
+/* Firefox scrollbar */
+.controls-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #404040 transparent;
+}
+
+/* P3 wide gamut colour preview */
+@supports (color: oklch(0.5 0.2 180)) {
+  .colour-preview-oklch {
+    background-color: oklch(var(--preview-l) var(--preview-c) var(--preview-h));
+  }
+}

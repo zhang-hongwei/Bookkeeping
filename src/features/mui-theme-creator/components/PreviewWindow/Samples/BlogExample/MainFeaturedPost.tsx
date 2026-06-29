@@ -1,0 +1,99 @@
+import React from "react"
+import PropTypes from "prop-types"
+import { styled } from "@mui/material/styles"
+import Paper from "@mui/material/Paper"
+import Typography from "@mui/material/Typography"
+import Grid from "@mui/material/Grid"
+import Link from "@mui/material/Link"
+import Tooltip from "@mui/material/Tooltip"
+
+const StyledMainFeaturedPost = styled(Paper)(({ theme }) => ({
+  position: "relative",
+  backgroundColor: theme.palette.grey[800],
+  color: theme.palette.common.white,
+  marginBottom: theme.spacing(4),
+  backgroundImage: "url(https://source.unsplash.com/random)",
+  backgroundSize: "cover",
+  backgroundRepeat: "no-repeat",
+  backgroundPosition: "center",
+}))
+
+const StyledOverlay = styled("div")({
+  position: "absolute",
+  top: 0,
+  bottom: 0,
+  right: 0,
+  left: 0,
+  backgroundColor: "rgba(0,0,0,.3)",
+})
+
+const StyledMainFeaturedPostContent = styled("div")(({ theme }) => ({
+  position: "relative",
+  padding: theme.spacing(3),
+  [theme.breakpoints.up("md")]: {
+    padding: theme.spacing(6),
+    paddingRight: 0,
+  },
+}))
+
+export default function MainFeaturedPost(props) {
+  const { post } = props
+
+  return (
+    <StyledMainFeaturedPost
+      style={{ backgroundImage: `url(${post.image})` }}
+    >
+      {/* Increase the priority of the hero background image */}
+      {
+        <img
+          style={{ display: "none" }}
+          src={post.image}
+          alt={post.imageText}
+        />
+      }
+      <StyledOverlay />
+      <Grid container>
+        <Grid item md={6}>
+          <StyledMainFeaturedPostContent>
+            <Tooltip
+              title={`<Typography color="textPrimary" variant="h3">`}
+              placement="left"
+              arrow
+            >
+              <Typography
+                component="h1"
+                variant="h3"
+                color="inherit"
+                gutterBottom
+              >
+                {post.title}
+              </Typography>
+            </Tooltip>
+            <Tooltip
+              title={`<Typography color="textPrimary" variant="h5">`}
+              placement="left"
+              arrow
+            >
+              <Typography variant="h5" color="inherit" paragraph>
+                {post.description}
+              </Typography>
+            </Tooltip>
+            <Tooltip
+              title={`<Link color="primary" variant="subtitle1">`}
+              placement="left"
+              arrow
+            >
+              <Link variant="subtitle1" href="#">
+                {post.linkText}
+              </Link>
+            </Tooltip>
+          </StyledMainFeaturedPostContent>
+        </Grid>
+      </Grid>
+    </StyledMainFeaturedPost>
+  )
+}
+
+MainFeaturedPost.propTypes = {
+  post: PropTypes.object,
+}

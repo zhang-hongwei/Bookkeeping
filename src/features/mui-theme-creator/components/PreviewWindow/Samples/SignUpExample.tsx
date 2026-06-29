@@ -1,0 +1,129 @@
+import React from "react"
+import Avatar from "@mui/material/Avatar"
+import Button from "@mui/material/Button"
+import TextField from "@mui/material/TextField"
+import FormControlLabel from "@mui/material/FormControlLabel"
+import Checkbox from "@mui/material/Checkbox"
+import Link from "@mui/material/Link"
+import Grid from "@mui/material/Grid"
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined"
+import Typography from "@mui/material/Typography"
+import { styled } from "@mui/material/styles"
+import Container from "@mui/material/Container"
+import Tooltip from "@mui/material/Tooltip"
+
+const StyledPaper = styled("div")(({ theme }) => ({
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+}))
+
+const StyledAvatar = styled(Avatar)(({ theme }) => ({
+  margin: theme.spacing(1),
+  backgroundColor: theme.palette.secondary.main,
+}))
+
+const StyledForm = styled("form")(({ theme }) => ({
+  width: "100%", // Fix IE 11 issue.
+  marginTop: theme.spacing(3),
+}))
+
+const StyledButton = styled(Button)(({ theme }) => ({
+  margin: theme.spacing(3, 0, 2),
+}))
+
+export default function SignUpExample() {
+  return (
+    <Container component="main" maxWidth="xs">
+      <StyledPaper>
+        <Tooltip title={`<Avatar> color="secondary"`} arrow>
+          <StyledAvatar>
+            <LockOutlinedIcon />
+          </StyledAvatar>
+        </Tooltip>
+        <Tooltip title={`<Typography color="textPrimary" variant="h5">`} arrow>
+          <Typography variant="h5">Sign up</Typography>
+        </Tooltip>
+        <StyledForm noValidate>
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                autoComplete="fname"
+                name="firstName"
+                variant="outlined"
+                required
+                fullWidth
+                id="firstName"
+                label="First Name"
+                autoFocus
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                variant="outlined"
+                required
+                fullWidth
+                id="lastName"
+                label="Last Name"
+                name="lastName"
+                autoComplete="lname"
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                variant="outlined"
+                required
+                fullWidth
+                id="email"
+                label="Email Address"
+                name="email"
+                autoComplete="email"
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                variant="outlined"
+                required
+                fullWidth
+                name="password"
+                label="Password"
+                type="password"
+                id="password"
+                autoComplete="current-password"
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <FormControlLabel
+                control={
+                  <Tooltip title={`<Checkbox color="primary">`} arrow>
+                    <Checkbox value="allowExtraEmails" color="primary" />
+                  </Tooltip>
+                }
+                label="I want to receive inspiration, marketing promotions and updates via email."
+              />
+            </Grid>
+          </Grid>
+          <Tooltip title={`<Button color="primary" variant="contained">`} arrow>
+            <StyledButton
+              type="submit"
+              fullWidth
+              variant="contained"
+              color="primary"
+            >
+              Sign Up
+            </StyledButton>
+          </Tooltip>
+          <Grid container justifyContent="flex-end">
+            <Grid>
+              <Tooltip title={`<Link color="primary" variant="body2">`} arrow>
+                <Link href="#" variant="body2">
+                  Already have an account? Sign in
+                </Link>
+              </Tooltip>
+            </Grid>
+          </Grid>
+        </StyledForm>
+      </StyledPaper>
+    </Container>
+  )
+}

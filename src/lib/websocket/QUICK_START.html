@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>WebSocket &#x5e93;&#x5feb;&#x901f;&#x5f00;&#x59cb;</title>
+            <style>
+/* From extension vscode.github */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+.vscode-dark img[src$=\#gh-light-mode-only],
+.vscode-light img[src$=\#gh-dark-mode-only],
+.vscode-high-contrast:not(.vscode-high-contrast-light) img[src$=\#gh-light-mode-only],
+.vscode-high-contrast-light img[src$=\#gh-dark-mode-only] {
+	display: none;
+}
+
+</style>
+            
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/markdown.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/highlight.css">
+<style>
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, 'Ubuntu', 'Droid Sans', sans-serif;
+                font-size: 14px;
+                line-height: 1.6;
+            }
+        </style>
+        <style>
+.task-list-item {
+    list-style-type: none;
+}
+
+.task-list-item-checkbox {
+    margin-left: -20px;
+    vertical-align: middle;
+    pointer-events: none;
+}
+</style>
+<style>
+:root {
+  --color-note: #0969da;
+  --color-tip: #1a7f37;
+  --color-warning: #9a6700;
+  --color-severe: #bc4c00;
+  --color-caution: #d1242f;
+  --color-important: #8250df;
+}
+
+</style>
+<style>
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-note: #2f81f7;
+    --color-tip: #3fb950;
+    --color-warning: #d29922;
+    --color-severe: #db6d28;
+    --color-caution: #f85149;
+    --color-important: #a371f7;
+  }
+}
+
+</style>
+<style>
+.markdown-alert {
+  padding: 0.5rem 1rem;
+  margin-bottom: 16px;
+  color: inherit;
+  border-left: .25em solid #888;
+}
+
+.markdown-alert>:first-child {
+  margin-top: 0
+}
+
+.markdown-alert>:last-child {
+  margin-bottom: 0
+}
+
+.markdown-alert .markdown-alert-title {
+  display: flex;
+  font-weight: 500;
+  align-items: center;
+  line-height: 1
+}
+
+.markdown-alert .markdown-alert-title .octicon {
+  margin-right: 0.5rem;
+  display: inline-block;
+  overflow: visible !important;
+  vertical-align: text-bottom;
+  fill: currentColor;
+}
+
+.markdown-alert.markdown-alert-note {
+  border-left-color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-note .markdown-alert-title {
+  color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-important {
+  border-left-color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-important .markdown-alert-title {
+  color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-warning {
+  border-left-color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-warning .markdown-alert-title {
+  color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-tip {
+  border-left-color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-tip .markdown-alert-title {
+  color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-caution {
+  border-left-color: var(--color-caution);
+}
+
+.markdown-alert.markdown-alert-caution .markdown-alert-title {
+  color: var(--color-caution);
+}
+
+</style>
+        
+        </head>
+        <body class="vscode-body vscode-light">
+            <h1 id="websocket-库快速开始">WebSocket 库快速开始</h1>
+<h2 id="-5分钟上手">🚀 5分钟上手</h2>
+<h3 id="1-基础使用">1. 基础使用</h3>
+<pre><code class="language-typescript"><span class="hljs-keyword">import</span> { useWebSocket } <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;@/components/layouts/websocket&#x27;</span>;
+
+<span class="hljs-keyword">function</span> <span class="hljs-title function_">MyComponent</span>(<span class="hljs-params"></span>) {
+    <span class="hljs-keyword">const</span> { isConnected, send, onMessage } = <span class="hljs-title function_">useWebSocket</span>({
+        <span class="hljs-attr">config</span>: { <span class="hljs-attr">url</span>: <span class="hljs-string">&#x27;wss://api.example.com/ws&#x27;</span> }
+    });
+
+    <span class="hljs-title function_">useEffect</span>(<span class="hljs-function">() =&gt;</span> {
+        <span class="hljs-keyword">return</span> <span class="hljs-title function_">onMessage</span>(<span class="hljs-function">(<span class="hljs-params">data</span>) =&gt;</span> <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&#x27;收到:&#x27;</span>, data));
+    }, [onMessage]);
+
+    <span class="hljs-keyword">return</span> (
+        <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">div</span>&gt;</span>
+            <span class="hljs-tag">&lt;<span class="hljs-name">p</span>&gt;</span>状态: {isConnected ? &#x27;已连接&#x27; : &#x27;未连接&#x27;}<span class="hljs-tag">&lt;/<span class="hljs-name">p</span>&gt;</span>
+            <span class="hljs-tag">&lt;<span class="hljs-name">button</span> <span class="hljs-attr">onClick</span>=<span class="hljs-string">{()</span> =&gt;</span> send({ message: &#x27;Hello&#x27; })}&gt;
+                发送消息
+            <span class="hljs-tag">&lt;/<span class="hljs-name">button</span>&gt;</span>
+        <span class="hljs-tag">&lt;/<span class="hljs-name">div</span>&gt;</span></span>
+    );
+}
+</code></pre>
+<h3 id="2-全局使用-推荐">2. 全局使用 (推荐)</h3>
+<pre><code class="language-typescript"><span class="hljs-comment">// App.tsx</span>
+<span class="hljs-keyword">import</span> { <span class="hljs-title class_">WebSocketProvider</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;@/components/layouts/websocket&#x27;</span>;
+
+<span class="hljs-keyword">function</span> <span class="hljs-title function_">App</span>(<span class="hljs-params"></span>) {
+    <span class="hljs-keyword">return</span> (
+        <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">WebSocketProvider</span> <span class="hljs-attr">config</span>=<span class="hljs-string">{{</span> <span class="hljs-attr">url:</span> &#x27;<span class="hljs-attr">wss:</span>//<span class="hljs-attr">api.example.com</span>/<span class="hljs-attr">ws</span>&#x27; }}&gt;</span>
+            <span class="hljs-tag">&lt;<span class="hljs-name">MyApp</span> /&gt;</span>
+        <span class="hljs-tag">&lt;/<span class="hljs-name">WebSocketProvider</span>&gt;</span></span>
+    );
+}
+
+<span class="hljs-comment">// 任何子组件</span>
+<span class="hljs-keyword">import</span> { useWebSocketContext } <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;@/components/layouts/websocket&#x27;</span>;
+
+<span class="hljs-keyword">function</span> <span class="hljs-title function_">ChatComponent</span>(<span class="hljs-params"></span>) {
+    <span class="hljs-keyword">const</span> { isConnected, send } = <span class="hljs-title function_">useWebSocketContext</span>();
+    
+    <span class="hljs-keyword">return</span> (
+        <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">button</span> 
+            <span class="hljs-attr">onClick</span>=<span class="hljs-string">{()</span> =&gt;</span> send({ type: &#x27;chat&#x27;, message: &#x27;Hi!&#x27; })}
+            disabled={!isConnected}
+        &gt;
+            发送消息
+        <span class="hljs-tag">&lt;/<span class="hljs-name">button</span>&gt;</span></span>
+    );
+}
+</code></pre>
+<h2 id="-常用配置">📋 常用配置</h2>
+<h3 id="基础配置">基础配置</h3>
+<pre><code class="language-typescript"><span class="hljs-keyword">const</span> config = {
+    <span class="hljs-attr">url</span>: <span class="hljs-string">&#x27;wss://api.example.com/ws&#x27;</span>,
+    <span class="hljs-attr">reconnect</span>: <span class="hljs-literal">true</span>,                    <span class="hljs-comment">// 自动重连</span>
+    <span class="hljs-attr">maxReconnectAttempts</span>: <span class="hljs-number">5</span>,           <span class="hljs-comment">// 最大重连次数</span>
+    <span class="hljs-attr">reconnectInterval</span>: <span class="hljs-number">1000</span>,           <span class="hljs-comment">// 重连间隔(ms)</span>
+    <span class="hljs-attr">heartbeatInterval</span>: <span class="hljs-number">30000</span>,          <span class="hljs-comment">// 心跳间隔(ms)</span>
+};
+</code></pre>
+<h3 id="事件处理">事件处理</h3>
+<pre><code class="language-typescript"><span class="hljs-keyword">const</span> config = {
+    <span class="hljs-attr">url</span>: <span class="hljs-string">&#x27;wss://api.example.com/ws&#x27;</span>,
+    <span class="hljs-attr">onOpen</span>: <span class="hljs-function">() =&gt;</span> <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&#x27;连接成功&#x27;</span>),
+    <span class="hljs-attr">onClose</span>: <span class="hljs-function">() =&gt;</span> <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&#x27;连接关闭&#x27;</span>),
+    <span class="hljs-attr">onError</span>: <span class="hljs-function">(<span class="hljs-params">error</span>) =&gt;</span> <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">error</span>(<span class="hljs-string">&#x27;连接错误:&#x27;</span>, error),
+    <span class="hljs-attr">onMessage</span>: <span class="hljs-function">(<span class="hljs-params">data</span>) =&gt;</span> <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&#x27;收到消息:&#x27;</span>, data),
+};
+</code></pre>
+<h2 id="-核心-hook">🎯 核心 Hook</h2>
+<h3 id="usewebsocket---基础连接">useWebSocket - 基础连接</h3>
+<pre><code class="language-typescript"><span class="hljs-keyword">const</span> {
+    isConnected,     <span class="hljs-comment">// 是否连接</span>
+    send,           <span class="hljs-comment">// 发送消息</span>
+    onMessage,      <span class="hljs-comment">// 监听消息</span>
+    connect,        <span class="hljs-comment">// 手动连接</span>
+    disconnect,     <span class="hljs-comment">// 断开连接</span>
+    reconnect,      <span class="hljs-comment">// 重新连接</span>
+    error          <span class="hljs-comment">// 错误信息</span>
+} = <span class="hljs-title function_">useWebSocket</span>({ config });
+</code></pre>
+<h3 id="usewebsocketmessage---消息处理">useWebSocketMessage - 消息处理</h3>
+<pre><code class="language-typescript"><span class="hljs-keyword">const</span> {
+    messages,        <span class="hljs-comment">// 消息列表</span>
+    lastMessage,     <span class="hljs-comment">// 最新消息</span>
+    clearMessages,   <span class="hljs-comment">// 清空消息</span>
+    messageStats     <span class="hljs-comment">// 消息统计</span>
+} = <span class="hljs-title function_">useWebSocketMessage</span>({
+    client,
+    <span class="hljs-attr">maxMessages</span>: <span class="hljs-number">100</span>,
+    <span class="hljs-attr">enableHistory</span>: <span class="hljs-literal">true</span>
+});
+</code></pre>
+<h3 id="usewebsocketfull---完整功能">useWebSocketFull - 完整功能</h3>
+<pre><code class="language-typescript"><span class="hljs-keyword">const</span> webSocket = <span class="hljs-title function_">useWebSocketFull</span>({
+    <span class="hljs-attr">config</span>: { <span class="hljs-attr">url</span>: <span class="hljs-string">&#x27;wss://api.example.com/ws&#x27;</span> },
+    <span class="hljs-attr">messageFilter</span>: <span class="hljs-function">(<span class="hljs-params">data</span>) =&gt;</span> data.<span class="hljs-property">type</span> === <span class="hljs-string">&#x27;chat&#x27;</span>,
+    <span class="hljs-attr">maxMessages</span>: <span class="hljs-number">50</span>
+});
+
+<span class="hljs-comment">// 包含所有功能</span>
+<span class="hljs-keyword">const</span> { isConnected, send, messages, connectionState } = webSocket;
+</code></pre>
+<h2 id="️-错误处理">🛡️ 错误处理</h2>
+<h3 id="错误边界">错误边界</h3>
+<pre><code class="language-typescript"><span class="hljs-keyword">import</span> { <span class="hljs-title class_">WebSocketErrorBoundary</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;@/components/layouts/websocket&#x27;</span>;
+
+<span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">WebSocketErrorBoundary</span>
+    <span class="hljs-attr">fallback</span>=<span class="hljs-string">{</span>&lt;<span class="hljs-attr">div</span>&gt;</span>连接出现问题<span class="hljs-tag">&lt;/<span class="hljs-name">div</span>&gt;</span>}
+    onError={(error) =&gt; console.error(error)}
+&gt;
+    <span class="hljs-tag">&lt;<span class="hljs-name">WebSocketProvider</span> <span class="hljs-attr">config</span>=<span class="hljs-string">{{</span> <span class="hljs-attr">url:</span> &#x27;<span class="hljs-attr">wss:</span>//<span class="hljs-attr">api.example.com</span>/<span class="hljs-attr">ws</span>&#x27; }}&gt;</span>
+        <span class="hljs-tag">&lt;<span class="hljs-name">App</span> /&gt;</span>
+    <span class="hljs-tag">&lt;/<span class="hljs-name">WebSocketProvider</span>&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-name">WebSocketErrorBoundary</span>&gt;</span></span>
+</code></pre>
+<h3 id="手动错误处理">手动错误处理</h3>
+<pre><code class="language-typescript"><span class="hljs-keyword">const</span> { error, isConnected } = <span class="hljs-title function_">useWebSocket</span>({ config });
+
+<span class="hljs-title function_">useEffect</span>(<span class="hljs-function">() =&gt;</span> {
+    <span class="hljs-keyword">if</span> (error) {
+        <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">error</span>(<span class="hljs-string">&#x27;WebSocket 错误:&#x27;</span>, error);
+        <span class="hljs-comment">// 显示错误提示</span>
+    }
+}, [error]);
+</code></pre>
+<h2 id="-实用示例">📊 实用示例</h2>
+<h3 id="聊天应用">聊天应用</h3>
+<pre><code class="language-typescript"><span class="hljs-keyword">function</span> <span class="hljs-title function_">ChatApp</span>(<span class="hljs-params"></span>) {
+    <span class="hljs-keyword">const</span> [message, setMessage] = <span class="hljs-title function_">useState</span>(<span class="hljs-string">&#x27;&#x27;</span>);
+    <span class="hljs-keyword">const</span> { isConnected, send } = <span class="hljs-title function_">useWebSocketContext</span>();
+    <span class="hljs-keyword">const</span> { messages } = <span class="hljs-title function_">useWebSocketMessage</span>({
+        <span class="hljs-attr">client</span>: <span class="hljs-literal">null</span>, <span class="hljs-comment">// 从 context 获取</span>
+        <span class="hljs-attr">filter</span>: <span class="hljs-function">(<span class="hljs-params">data</span>) =&gt;</span> data.<span class="hljs-property">type</span> === <span class="hljs-string">&#x27;chat&#x27;</span>
+    });
+
+    <span class="hljs-keyword">const</span> <span class="hljs-title function_">sendMessage</span> = (<span class="hljs-params"></span>) =&gt; {
+        <span class="hljs-keyword">if</span> (message.<span class="hljs-title function_">trim</span>()) {
+            <span class="hljs-title function_">send</span>({ <span class="hljs-attr">type</span>: <span class="hljs-string">&#x27;chat&#x27;</span>, message, <span class="hljs-attr">user</span>: <span class="hljs-string">&#x27;me&#x27;</span> });
+            <span class="hljs-title function_">setMessage</span>(<span class="hljs-string">&#x27;&#x27;</span>);
+        }
+    };
+
+    <span class="hljs-keyword">return</span> (
+        <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">div</span>&gt;</span>
+            <span class="hljs-tag">&lt;<span class="hljs-name">div</span> <span class="hljs-attr">className</span>=<span class="hljs-string">&quot;messages&quot;</span>&gt;</span>
+                {messages.map((msg, i) =&gt; (
+                    <span class="hljs-tag">&lt;<span class="hljs-name">div</span> <span class="hljs-attr">key</span>=<span class="hljs-string">{i}</span>&gt;</span>{msg.user}: {msg.message}<span class="hljs-tag">&lt;/<span class="hljs-name">div</span>&gt;</span>
+                ))}
+            <span class="hljs-tag">&lt;/<span class="hljs-name">div</span>&gt;</span>
+            <span class="hljs-tag">&lt;<span class="hljs-name">input</span>
+                <span class="hljs-attr">value</span>=<span class="hljs-string">{message}</span>
+                <span class="hljs-attr">onChange</span>=<span class="hljs-string">{(e)</span> =&gt;</span> setMessage(e.target.value)}
+                onKeyPress={(e) =&gt; e.key === &#x27;Enter&#x27; &amp;&amp; sendMessage()}
+            /&gt;
+            <span class="hljs-tag">&lt;<span class="hljs-name">button</span> <span class="hljs-attr">onClick</span>=<span class="hljs-string">{sendMessage}</span> <span class="hljs-attr">disabled</span>=<span class="hljs-string">{!isConnected}</span>&gt;</span>
+                发送
+            <span class="hljs-tag">&lt;/<span class="hljs-name">button</span>&gt;</span>
+        <span class="hljs-tag">&lt;/<span class="hljs-name">div</span>&gt;</span></span>
+    );
+}
+</code></pre>
+<h3 id="实时数据">实时数据</h3>
+<pre><code class="language-typescript"><span class="hljs-keyword">function</span> <span class="hljs-title function_">DataMonitor</span>(<span class="hljs-params"></span>) {
+    <span class="hljs-keyword">const</span> { messages } = <span class="hljs-title function_">useWebSocketMessage</span>({
+        <span class="hljs-attr">client</span>: <span class="hljs-literal">null</span>,
+        <span class="hljs-attr">filter</span>: <span class="hljs-function">(<span class="hljs-params">data</span>) =&gt;</span> data.<span class="hljs-property">type</span> === <span class="hljs-string">&#x27;metric&#x27;</span>,
+        <span class="hljs-attr">maxMessages</span>: <span class="hljs-number">20</span>
+    });
+
+    <span class="hljs-keyword">const</span> latestData = messages[messages.<span class="hljs-property">length</span> - <span class="hljs-number">1</span>];
+
+    <span class="hljs-keyword">return</span> (
+        <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">div</span>&gt;</span>
+            <span class="hljs-tag">&lt;<span class="hljs-name">h3</span>&gt;</span>实时数据<span class="hljs-tag">&lt;/<span class="hljs-name">h3</span>&gt;</span>
+            {latestData &amp;&amp; (
+                <span class="hljs-tag">&lt;<span class="hljs-name">div</span>&gt;</span>
+                    <span class="hljs-tag">&lt;<span class="hljs-name">p</span>&gt;</span>值: {latestData.value}<span class="hljs-tag">&lt;/<span class="hljs-name">p</span>&gt;</span>
+                    <span class="hljs-tag">&lt;<span class="hljs-name">p</span>&gt;</span>时间: {new Date(latestData.timestamp).toLocaleString()}<span class="hljs-tag">&lt;/<span class="hljs-name">p</span>&gt;</span>
+                <span class="hljs-tag">&lt;/<span class="hljs-name">div</span>&gt;</span>
+            )}
+        <span class="hljs-tag">&lt;/<span class="hljs-name">div</span>&gt;</span></span>
+    );
+}
+</code></pre>
+<h3 id="通知系统">通知系统</h3>
+<pre><code class="language-typescript"><span class="hljs-keyword">function</span> <span class="hljs-title function_">NotificationBell</span>(<span class="hljs-params"></span>) {
+    <span class="hljs-keyword">const</span> [notifications, setNotifications] = <span class="hljs-title function_">useState</span>([]);
+    <span class="hljs-keyword">const</span> { addMessageListener } = <span class="hljs-title function_">useWebSocketContext</span>();
+
+    <span class="hljs-title function_">useEffect</span>(<span class="hljs-function">() =&gt;</span> {
+        <span class="hljs-keyword">return</span> <span class="hljs-title function_">addMessageListener</span>(<span class="hljs-function">(<span class="hljs-params">data</span>) =&gt;</span> {
+            <span class="hljs-keyword">if</span> (data.<span class="hljs-property">type</span> === <span class="hljs-string">&#x27;notification&#x27;</span>) {
+                <span class="hljs-title function_">setNotifications</span>(<span class="hljs-function"><span class="hljs-params">prev</span> =&gt;</span> [data, ...prev].<span class="hljs-title function_">slice</span>(<span class="hljs-number">0</span>, <span class="hljs-number">10</span>));
+            }
+        });
+    }, [addMessageListener]);
+
+    <span class="hljs-keyword">return</span> (
+        <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">div</span> <span class="hljs-attr">className</span>=<span class="hljs-string">&quot;notification-bell&quot;</span>&gt;</span>
+            🔔 {notifications.length &gt; 0 &amp;&amp; (
+                <span class="hljs-tag">&lt;<span class="hljs-name">span</span> <span class="hljs-attr">className</span>=<span class="hljs-string">&quot;badge&quot;</span>&gt;</span>{notifications.length}<span class="hljs-tag">&lt;/<span class="hljs-name">span</span>&gt;</span>
+            )}
+        <span class="hljs-tag">&lt;/<span class="hljs-name">div</span>&gt;</span></span>
+    );
+}
+</code></pre>
+<h2 id="-便捷函数">🔧 便捷函数</h2>
+<h3 id="快速连接">快速连接</h3>
+<pre><code class="language-typescript"><span class="hljs-keyword">import</span> { quickConnect } <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;@/components/layouts/websocket&#x27;</span>;
+
+<span class="hljs-comment">// 一行代码创建连接</span>
+<span class="hljs-keyword">const</span> client = <span class="hljs-title function_">quickConnect</span>(<span class="hljs-string">&#x27;wss://api.example.com/ws&#x27;</span>, <span class="hljs-function">(<span class="hljs-params">data</span>) =&gt;</span> {
+    <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&#x27;收到消息:&#x27;</span>, data);
+});
+</code></pre>
+<h3 id="环境配置">环境配置</h3>
+<pre><code class="language-typescript"><span class="hljs-keyword">import</span> {
+    createDevWebSocketClient,
+    createProdWebSocketClient
+} <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;@/components/layouts/websocket&#x27;</span>;
+
+<span class="hljs-comment">// 开发环境（详细日志）</span>
+<span class="hljs-keyword">const</span> devClient = <span class="hljs-title function_">createDevWebSocketClient</span>(<span class="hljs-string">&#x27;wss://dev-api.example.com/ws&#x27;</span>);
+
+<span class="hljs-comment">// 生产环境（性能优化）</span>
+<span class="hljs-keyword">const</span> prodClient = <span class="hljs-title function_">createProdWebSocketClient</span>(<span class="hljs-string">&#x27;wss://api.example.com/ws&#x27;</span>);
+</code></pre>
+<h2 id="-最佳实践">💡 最佳实践</h2>
+<h3 id="-推荐做法">✅ 推荐做法</h3>
+<pre><code class="language-typescript"><span class="hljs-comment">// 1. 使用 Provider 进行全局管理</span>
+&lt;<span class="hljs-title class_">WebSocketProvider</span> config={{ <span class="hljs-attr">url</span>: <span class="hljs-string">&#x27;wss://api.example.com/ws&#x27;</span> }}&gt;
+    <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">App</span> /&gt;</span></span>
+&lt;/<span class="hljs-title class_">WebSocketProvider</span>&gt;
+
+<span class="hljs-comment">// 2. 正确清理监听器</span>
+<span class="hljs-title function_">useEffect</span>(<span class="hljs-function">() =&gt;</span> {
+    <span class="hljs-keyword">const</span> unsubscribe = <span class="hljs-title function_">onMessage</span>(handleMessage);
+    <span class="hljs-keyword">return</span> unsubscribe; <span class="hljs-comment">// 自动清理</span>
+}, [onMessage]);
+
+<span class="hljs-comment">// 3. 使用错误边界</span>
+<span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">WebSocketErrorBoundary</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">WebSocketProvider</span>&gt;</span>
+        <span class="hljs-tag">&lt;<span class="hljs-name">App</span> /&gt;</span>
+    <span class="hljs-tag">&lt;/<span class="hljs-name">WebSocketProvider</span>&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-name">WebSocketErrorBoundary</span>&gt;</span></span>
+
+<span class="hljs-comment">// 4. 限制消息数量</span>
+<span class="hljs-keyword">const</span> { messages } = <span class="hljs-title function_">useWebSocketMessage</span>({
+    client,
+    <span class="hljs-attr">maxMessages</span>: <span class="hljs-number">100</span>, <span class="hljs-comment">// 防止内存泄漏</span>
+    <span class="hljs-attr">enableHistory</span>: <span class="hljs-literal">false</span> <span class="hljs-comment">// 如果不需要历史记录</span>
+});
+</code></pre>
+<h3 id="-避免做法">❌ 避免做法</h3>
+<pre><code class="language-typescript"><span class="hljs-comment">// ❌ 不要在每次渲染时创建新连接</span>
+<span class="hljs-keyword">function</span> <span class="hljs-title function_">BadComponent</span>(<span class="hljs-params"></span>) {
+    <span class="hljs-keyword">const</span> ws = <span class="hljs-title function_">useWebSocket</span>({ <span class="hljs-attr">config</span>: { <span class="hljs-attr">url</span>: <span class="hljs-string">&#x27;wss://...&#x27;</span> } }); <span class="hljs-comment">// 每次都创建新连接</span>
+}
+
+<span class="hljs-comment">// ❌ 不要忘记清理监听器</span>
+<span class="hljs-title function_">useEffect</span>(<span class="hljs-function">() =&gt;</span> {
+    <span class="hljs-title function_">onMessage</span>(handleMessage); <span class="hljs-comment">// 没有返回清理函数</span>
+}, []);
+
+<span class="hljs-comment">// ❌ 不要无限制地存储消息</span>
+<span class="hljs-keyword">const</span> { messages } = <span class="hljs-title function_">useWebSocketMessage</span>({
+    client,
+    <span class="hljs-comment">// 没有设置 maxMessages，可能导致内存泄漏</span>
+});
+</code></pre>
+<h2 id="-常见问题">🐛 常见问题</h2>
+<h3 id="q-连接失败怎么办">Q: 连接失败怎么办？</h3>
+<pre><code class="language-typescript"><span class="hljs-comment">// 检查 URL 格式</span>
+<span class="hljs-keyword">import</span> { isValidWebSocketUrl } <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;@/components/layouts/websocket&#x27;</span>;
+<span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-title function_">isValidWebSocketUrl</span>(<span class="hljs-string">&#x27;wss://api.example.com/ws&#x27;</span>)); <span class="hljs-comment">// true</span>
+
+<span class="hljs-comment">// 监听错误</span>
+<span class="hljs-keyword">const</span> { error } = <span class="hljs-title function_">useWebSocket</span>(config);
+<span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&#x27;错误信息:&#x27;</span>, error);
+</code></pre>
+<h3 id="q-如何处理重连">Q: 如何处理重连？</h3>
+<pre><code class="language-typescript"><span class="hljs-keyword">const</span> config = {
+    <span class="hljs-attr">url</span>: <span class="hljs-string">&#x27;wss://api.example.com/ws&#x27;</span>,
+    <span class="hljs-attr">reconnect</span>: <span class="hljs-literal">true</span>,
+    <span class="hljs-attr">maxReconnectAttempts</span>: <span class="hljs-number">10</span>,    <span class="hljs-comment">// 增加重连次数</span>
+    <span class="hljs-attr">reconnectInterval</span>: <span class="hljs-number">2000</span>,     <span class="hljs-comment">// 调整重连间隔</span>
+};
+</code></pre>
+<h3 id="q-消息太多怎么办">Q: 消息太多怎么办？</h3>
+<pre><code class="language-typescript"><span class="hljs-keyword">const</span> { messages } = <span class="hljs-title function_">useWebSocketMessage</span>({
+    client,
+    <span class="hljs-attr">maxMessages</span>: <span class="hljs-number">50</span>,             <span class="hljs-comment">// 限制消息数量</span>
+    <span class="hljs-attr">filter</span>: <span class="hljs-function">(<span class="hljs-params">data</span>) =&gt;</span> data.<span class="hljs-property">important</span>, <span class="hljs-comment">// 过滤重要消息</span>
+});
+</code></pre>
+<h2 id="-更多资源">📚 更多资源</h2>
+<ul>
+<li>📖 <a href="./README.html">完整文档</a></li>
+<li>🔧 <a href="./types/">API 参考</a></li>
+<li>🧪 <a href="./tests/">测试示例</a></li>
+<li>🌟 <a href="./examples/">高级用法</a></li>
+</ul>
+<hr>
+<p><strong>快速开始完成！</strong> 🎉 现在你可以在项目中使用 WebSocket 库了。</p>
+
+            
+            
+        </body>
+        </html>

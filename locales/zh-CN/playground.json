@@ -1,0 +1,133 @@
+{
+  "header": {
+    "title": "API Playground",
+    "breadcrumb": "首页 / API Playground",
+    "sendRequest": "发送请求",
+    "sending": "发送中...",
+    "apiKey": "API Key",
+    "copyApiKey": "点击复制 API Key"
+  },
+  "form": {
+    "title": "API 请求配置",
+    "description": "配置参数并发送请求测试 ASIN Data API",
+    "selectApi": "选择 API",
+    "selectApiTooltip": "选择要测试的 API 类型",
+    "selectApiPlaceholder": "Product Data API /request",
+    "type": "Type",
+    "typeTooltip": "选择要调用的 API 请求类型",
+    "typeHelper": "type",
+    "accountApiInfo": "The Account API doesn't have any parameters to edit. Click \"Send API Request\" to see the response from the Account API endpoint.",
+    "sendRequest": "发送 API 请求",
+    "sending": "发送中...",
+    "reset": "重置表单"
+  },
+  "apiOptions": {
+    "productDataApi": "Product Data API",
+    "accountApi": "Account API"
+  },
+  "requestTypes": {
+    "coreRequests": "CORE REQUESTS",
+    "customerFeedback": "CUSTOMER FEEDBACK",
+    "product": {
+      "label": "Product",
+      "description": "获取产品基本信息、价格、评分等"
+    },
+    "search": {
+      "label": "Search",
+      "description": "搜索产品并获取搜索结果列表"
+    },
+    "category": {
+      "label": "Category",
+      "description": "浏览分类下的产品"
+    },
+    "offers": {
+      "label": "Offers",
+      "description": "获取产品的优惠和促销信息"
+    },
+    "reviews": {
+      "label": "Reviews",
+      "description": "获取产品的用户评论和评分"
+    }
+  },
+  "fields": {
+    "asin": {
+      "label": "ASIN",
+      "tooltip": "产品的唯一标识符（Amazon Standard Identification Number）",
+      "placeholder": "例如: B08N5WRWNW",
+      "helper": "asin"
+    },
+    "url": {
+      "label": "URL",
+      "tooltip": "产品页面的完整 URL 地址",
+      "placeholder": "例如: https://www.amazon.com/dp/B08N5WRWNW",
+      "helper": "url"
+    },
+    "categoryId": {
+      "label": "Category ID",
+      "tooltip": "分类的唯一标识符",
+      "placeholder": "例如: 2478868012",
+      "helper": "category_id"
+    },
+    "keyword": {
+      "label": "Keyword",
+      "tooltip": "搜索关键词",
+      "placeholder": "例如: laptop",
+      "helper": "keyword"
+    },
+    "amazonDomain": {
+      "label": "Amazon 域名",
+      "tooltip": "选择 Amazon 站点域名",
+      "helper": "amazon_domain"
+    },
+    "language": {
+      "label": "语言",
+      "tooltip": "选择响应数据的语言",
+      "helper": "language"
+    },
+    "output": {
+      "label": "输出格式",
+      "tooltip": "选择 API 响应的数据格式",
+      "helper": "output",
+      "json": "JSON",
+      "xml": "XML"
+    },
+    "page": {
+      "label": "页码",
+      "tooltip": "指定要获取的页码",
+      "helper": "page"
+    },
+    "sortBy": {
+      "label": "排序方式",
+      "tooltip": "选择搜索结果的排序方式",
+      "helper": "sort_by",
+      "featured": "Featured",
+      "priceLowToHigh": "Price: Low to High",
+      "priceHighToLow": "Price: High to Low",
+      "averageReview": "Average Customer Review",
+      "newest": "Newest Arrivals"
+    },
+    "associateId": {
+      "label": "Associate ID",
+      "tooltip": "Amazon Associates 联盟 ID（可选）",
+      "placeholder": "例如: myassociate-20",
+      "helper": "associate_id"
+    }
+  },
+  "tabs": {
+    "results": "Results",
+    "codeSample": "Code Sample"
+  },
+  "results": {
+    "noData": "暂无数据",
+    "statusCode": "状态码",
+    "responseTime": "响应时间",
+    "emptyState": "发送请求后，API 响应将在此显示",
+    "loading": "正在加载数据...",
+    "title": "API 响应",
+    "copy": "复制",
+    "copied": "已复制",
+    "copyJson": "复制 JSON",
+    "downloadJson": "下载 JSON",
+    "searchPlaceholder": "搜索响应内容..."
+  }
+}

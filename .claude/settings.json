@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "mcpServers": {
+    "konva-documentation": {
+      "command": "npx",
+      "args": [
+        "crawl-chat-mcp",
+        "--id=67d221efb4b9de65095a2579",
+        "--name=konva_documentation"
+      ]
+    }
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/skill-activation-prompt.sh",
+            "description": "智能技能激活 - 基于关键词和意图模式推荐相关技能 (TypeScript)"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|MultiEdit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/post-tool-use-tracker.sh",
+            "description": "追踪文件修改历史和构建命令"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/error-handling-reminder.sh",
+            "description": "编辑代码后提醒添加错误处理"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/tsc-check.sh",
+            "description": "实时 TypeScript 类型检查（带错误缓存和自动修复提示）"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/test-runner.sh",
+            "description": "检测并提示运行相关测试"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/stop-build-check-enhanced.sh",
+            "description": "会话结束时检查未修复的 TypeScript 错误（增强版）"
+          }
+        ]
+      },
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/trigger-build-resolver.sh",
+            "description": "会话结束时检测代码变更并提醒运行构建"
+          }
+        ]
+      }
+    ]
+  },
+  "allowedCommands": {
+    "alwaysAllow": [
+      "pnpm type-check",
+      "pnpm test --run",
+      "pnpm dev",
+      "pnpm build",
+      "git status",
+      "git diff",
+      "git log",
+      "ls",
+      "cat",
+      "tree"
+    ]
+  }
+}

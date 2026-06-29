@@ -1,0 +1,48 @@
+version: '2'
+
+services:
+  # PostgreSQL 数据库服务
+  postgres:
+    image: docker.1ms.run/postgres:16-alpine
+    container_name: dev-tool-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: devtool
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - dev-tool-network
+
+  # Next.js 应用服务
+  dev-tool:
+    image: dev-tool:latest
+    container_name: dev-tool
+    restart: unless-stopped
+    ports:
+      - "6006:3000"
+    dns:
+      - 223.5.5.5
+      - 119.29.29.29
+      - 8.8.8.8
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/devtool
+      DATABASE_PROVIDER: local
+    depends_on:
+      - postgres
+    build:
+      context: .
+      dockerfile: Dockerfile.minimal
+    networks:
+      - dev-tool-network
+
+networks:
+  dev-tool-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local

@@ -1,0 +1,328 @@
+/* ============================================================
+   HDR Gradient Overlay Styles
+   Minimal CSS for interactive overlay components that use
+   querySelector-based event handling.
+   ============================================================ */
+
+/* --- CSS Custom Properties (used by overlays) --- */
+.gradient-overlays {
+  /* Sizes */
+  --size-1: 0.25rem;
+  --size-2: 0.5rem;
+  --size-3: 0.75rem;
+  --size-4: 1rem;
+  --size-5: 1.25rem;
+  --size-6: 1.5rem;
+  --size-7: 2rem;
+  --size-8: 2.5rem;
+  --size-9: 3rem;
+  --size-10: 3.5rem;
+  --size-11: 4rem;
+
+  /* Radius */
+  --radius-round: 50%;
+
+  /* Ratios */
+  --ratio-square: 1;
+
+  /* Shadows */
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-4: 0 6px 12px rgba(0, 0, 0, 0.4);
+  --shadow-5: 0 8px 16px rgba(0, 0, 0, 0.5);
+  --inner-shadow-0: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+  --inner-shadow-2: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+
+  /* Easing */
+  --ease-3: cubic-bezier(0.5, 0, 0.3, 1);
+}
+
+/* --- Shared Overlay Styles --- */
+.linear-overlay,
+.radial-overlay,
+.conic-overlay {
+  --line-1: hsl(0 0% 100% / 90%);
+  --line-2: hsl(0 0% 50% / 50%);
+
+  position: absolute;
+  inset: 0;
+  display: grid;
+  pointer-events: none;
+  touch-action: none;
+}
+
+.linear-overlay {
+  will-change: rotate;
+}
+
+.radial-overlay,
+.conic-overlay {
+  will-change: translate, left, top;
+}
+
+/* Shared stop styles */
+.overlay-stop-wrap {
+  border-radius: var(--radius-round);
+  translate: -50% 0;
+  position: absolute;
+  max-inline-size: var(--size-5);
+  display: grid;
+  place-content: center;
+  place-items: center;
+  gap: var(--size-2);
+  z-index: 10;
+}
+
+.overlay-stop {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--contrast-fill, white);
+  aspect-ratio: var(--ratio-square);
+  inline-size: var(--size-5);
+  border-radius: var(--radius-round);
+  border: 0.5px solid hsl(0 0% 0% / 15%);
+  pointer-events: auto;
+  touch-action: manipulation;
+  cursor: grab;
+  user-select: none;
+}
+
+.overlay-stop:active {
+  cursor: grabbing;
+}
+
+.overlay-stop > button {
+  aspect-ratio: var(--ratio-square);
+  inline-size: var(--size-3);
+  border-radius: var(--radius-round);
+  padding: 0;
+  flex-shrink: 0;
+  border: none;
+  box-shadow: var(--inner-shadow-0);
+  outline-offset: 8px;
+}
+
+.overlay-hint {
+  translate: -50% 50%;
+  position: absolute;
+  max-inline-size: var(--size-5);
+  display: grid;
+  place-content: center;
+  place-items: center;
+  gap: var(--size-2);
+  z-index: 10;
+}
+
+.overlay-hint > svg {
+  max-inline-size: var(--size-5);
+  fill: white;
+  stroke-width: 0.5px;
+  stroke: hsl(0 0% 0% / 15%);
+  pointer-events: auto;
+  touch-action: manipulation;
+  cursor: grab;
+  user-select: none;
+}
+
+.overlay-hint > svg:active {
+  cursor: grabbing;
+}
+
+.ghost-stop-wrap {
+  position: absolute;
+  inset-block-start: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.ghost-stop {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in oklch, #1e1e1e 40%, transparent);
+  aspect-ratio: var(--ratio-square);
+  inline-size: var(--size-5);
+  border-radius: var(--radius-round);
+  border: 0.25rem solid var(--line-2);
+  box-shadow: none;
+  opacity: 0.8;
+}
+
+/* --- Linear Overlay --- */
+.overlay-pie {
+  --line-1: hsl(0 0% 100% / 50%);
+  --line-2: hsl(0 0% 100% / 10%);
+  position: relative;
+  grid-area: 1/1;
+  display: grid;
+  justify-content: center;
+  align-items: center;
+  pointer-events: none;
+}
+
+.overlay-visual {
+  --ng: 0;
+  --thickness: 3px;
+  --_inner: calc(70% - var(--thickness));
+  --_outer: calc(var(--_inner) + 1px);
+  mask: radial-gradient(circle, #0000 var(--_inner), #000 var(--_outer));
+  -webkit-mask: radial-gradient(circle, #0000 var(--_inner), #000 var(--_outer));
+  background-image: conic-gradient(var(--line-1), var(--line-1) var(--ng), #0000 0);
+  inline-size: var(--size-10);
+  aspect-ratio: var(--ratio-square);
+  border-radius: var(--radius-round);
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.overlay-visual.solid {
+  --line-1: white;
+}
+
+.overlay-visual-vert {
+  --line-1: white;
+  block-size: var(--size-10);
+  inline-size: 3px;
+  background-image: linear-gradient(to bottom, var(--line-1) 50%, #0000 0);
+}
+
+.overlay-dot {
+  background: white;
+  inline-size: var(--size-2);
+  aspect-ratio: var(--ratio-square);
+  border-radius: var(--radius-round);
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.overlay-line {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  display: grid;
+  grid-auto-flow: column;
+  place-items: center;
+  place-content: center space-between;
+  block-size: 2px;
+  inline-size: 100%;
+  background: var(--line-1);
+  transform: translate(-50%, -50%);
+  z-index: 11;
+}
+
+.overlay-line::after {
+  content: "";
+  block-size: 2px;
+  position: absolute;
+  background: repeating-linear-gradient(to right, #0000 0 5px, var(--line-2) 0 10px);
+  inline-size: 150cqmax;
+  z-index: -1;
+}
+
+.invisible-rotator {
+  pointer-events: auto;
+  inline-size: var(--size-10);
+  aspect-ratio: var(--ratio-square);
+  border-radius: var(--radius-round);
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  transform: translate(-50%, -50%);
+  cursor: ew-resize;
+}
+
+.invisible-track {
+  cursor: default;
+  pointer-events: auto;
+  position: absolute;
+  block-size: 1rem;
+  inline-size: 100%;
+  inset-block-start: 50%;
+  inset-inline-start: 0;
+  transform: translateY(-50%);
+  z-index: 0;
+}
+
+.invisible-ring {
+  pointer-events: auto;
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  z-index: 0;
+}
+
+/* --- Radial Overlay --- */
+.overlay-edge {
+  pointer-events: none;
+  position: absolute;
+  place-self: center;
+  border: 2px dashed hsl(0 0% 100% / 50%);
+  border-radius: 50%;
+}
+
+.overlay-dragzone {
+  cursor: move;
+  pointer-events: auto;
+  place-self: center;
+  inline-size: var(--size-10);
+  aspect-ratio: var(--ratio-square);
+  border-radius: var(--radius-round);
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  transform: translate(-50%, -50%);
+  transition: box-shadow 0.5s var(--ease-3);
+  --_shadow-size: 0px;
+  box-shadow: inset 0 0 0 var(--_shadow-size) hsl(0 0% 100% / 25%);
+  z-index: 2;
+}
+
+.overlay-dragzone:hover {
+  --_shadow-size: var(--size-10);
+}
+
+.overlay-dragzone.small {
+  inline-size: var(--size-8);
+  z-index: 5;
+}
+
+.overlay-dragzone.small:hover {
+  --_shadow-size: var(--size-11);
+}
+
+/* --- Conic Overlay specific --- */
+.overlay-visual.large {
+  inline-size: var(--size-11);
+}
+
+.overlay-visual.dotted {
+  background-image: repeating-conic-gradient(
+    hsl(0 0% 100% / 50%),
+    hsl(0 0% 100% / 50%) 2%,
+    #0000 0%, #0000 4%
+  );
+}
+
+.overlay-visual-vert.large {
+  block-size: var(--size-11);
+}
+
+.invisible-rotator.large {
+  inline-size: var(--size-11);
+}
+
+.conic-stops {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  display: grid;
+  place-items: center;
+  place-content: center;
+  pointer-events: none;
+}

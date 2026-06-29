@@ -1,0 +1,15 @@
+{
+  "nav": {
+    "apiPlayground": "API Playground",
+    "account": "Account",
+    "app": "App",
+    "userList": "User List",
+    "booking": "Booking",
+    "analytics": "Analytics",
+    "fileManager": "File Manager",
+    "blog": "Blog",
+    "invoice": "Invoice",
+    "product": "Product",
+    "profile": "Profile"
+  }
+}
