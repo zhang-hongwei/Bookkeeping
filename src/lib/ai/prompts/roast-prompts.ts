@@ -3,7 +3,23 @@
  * AI prompts for 4-character roast personas
  */
 
-import type { RoastGenerationResult } from '@/app/(tools)/roast-generator/types';
+/**
+ * Roast result types.
+ * Inlined here because the original @/app/(tools)/roast-generator/types module
+ * was removed together with the Dev Tools feature.
+ */
+export type RoastPersona = 'toxic' | 'highEQ' | 'worker' | 'goofy';
+
+export interface RoastVariant {
+  persona: RoastPersona;
+  text: string;
+  tags: string[];
+}
+
+export interface RoastGenerationResult {
+  original: string;
+  variants: RoastVariant[];
+}
 
 export const ROAST_SYSTEM_PROMPT = `你是一位多才多艺的"吐槽大师"，擅长用4种不同风格将普通句子改造成有趣、可传播的吐槽。你的任务是：
 1. 分析用户输入的一句话
