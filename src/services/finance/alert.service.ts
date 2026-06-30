@@ -17,11 +17,18 @@ import {
   computeFindings,
   shiftMonthKey,
   monthPeriod,
+  monthKey,
+  TREND_DECLINE_PERIODS,
+  computeTrendFindings,
   type FindingData,
   type PeriodRange,
+  type TrendFinding,
+  type TrendPoint,
 } from './rules-engine.service';
 import type { RiskLevel } from '@/database/schema/finance';
 import { alertRepository } from '@/repositories/finance/alert.repository';
+import { reportRepository } from '@/repositories/finance/report.repository';
+import { findingRepository } from '@/repositories/finance/finding.repository';
 
 /** 待物化的候选预警（纯函数产出，I1 锚点齐全）。 */
 export interface AlertCandidate {
@@ -52,16 +59,19 @@ function toRef(f: FindingData, period: string): AlertFindingRef {
 }
 
 /**
- * 纯函数：由本期 findings + 预测应急金不足点 + 上期储蓄率，生成候选预警（零幻觉，I1）。
+ * 纯函数：由本期 findings + 预测应急金不足点 + 上期储蓄率 + 趋势结论，生成候选预警（零幻觉，I1）。
  * - emergency_shortfall：应急金 risk=high 或预测应急金不足月非空。
  * - debt_ratio_high：负债率 risk=high。
  * - savings_rate_decline：储蓄率 medium/high 且低于上期。
+ * - trend_deterioration：趋势规则检出连续下降（决策 10），refs 取触发期次。
  */
 export function generateAlertCandidates(input: {
   findings: FindingData[];
   period: string;
   forecastShortfallMonth: string | null;
   prevSavingsRate: number | null;
+  /** 多期趋势结论（由 materializeAlerts 计算后传入；纯函数可单测）。 */
+  trendFindings?: TrendFinding[];
 }): AlertCandidate[] {
   const { period } = input;
   const byMetric = new Map(input.findings.map((f) => [f.metric, f]));
@@ -124,12 +134,33 @@ export function generateAlertCandidates(input: {
     }
   }
 
+  // trend_deterioration（决策 10）：趋势规则检出连续下降 → 可追溯至触发期次（I1）
+  for (const tf of input.trendFindings ?? []) {
+    const sev = toSeverity(tf.riskLevel);
+    if (!sev) continue;
+    out.push({
+      kind: 'trend_deterioration',
+      severity: sev,
+      ruleFindingRefs: tf.periods.map((p) => ({
+        metric: tf.metric,
+        period: p,
+        value: tf.value,
+        verdict: tf.verdict,
+        riskLevel: tf.riskLevel,
+      })),
+      period,
+      message: `${tf.verdict}，财务状况持续恶化，建议关注。`,
+    });
+  }
+
   return out;
 }
 
 /**
- * 物化本期预警：取 findings + 上期储蓄率 → 候选 → 幂等 upsert（I6）。
+ * 物化本期预警：取 findings + 上期储蓄率 + 多期趋势结论 → 候选 → 幂等 upsert（I6）。
  * - 调用方传入预测应急金不足点（来自 forecast.service）以串联 US1。
+ * - 趋势结论：聚合近 TREND_DECLINE_PERIODS 期报告健康分 + savings_rate findings，
+ *   经 computeTrendFindings（决策 10）判定连续下降，串联 US3 趋势预警。
  */
 export async function materializeAlerts(
   userId: string,
@@ -147,16 +178,70 @@ export async function materializeAlerts(
   const prevSavingsRate =
     prevSavings?.value != null ? Number(prevSavings.value) : null;
 
+  // 多期趋势结论（决策 10）：近 TREND_DECLINE_PERIODS 期 savings_rate + 健康分
+  const trendFindings = await computePeriodTrendFindings(
+    userId,
+    opts.periodKey,
+    TREND_DECLINE_PERIODS,
+  );
+
   const candidates = generateAlertCandidates({
     findings,
     period: opts.periodKey,
     forecastShortfallMonth: opts.forecastShortfallMonth ?? null,
     prevSavingsRate,
+    trendFindings,
   });
 
   const repo = alertRepository(userId);
   await Promise.all(candidates.map((c) => repo.upsert(c)));
   return candidates;
+}
+
+/**
+ * 取近 `months` 期（含当期）多期趋势结论（决策 10）。
+ * - savings_rate 序列来自持久化 findings（与各期报告结论一致，SC-004）。
+ * - healthScore 序列来自 ai_reports.score。
+ * - 缺数据的期次不计入；返回 trend_* 结论（可能为空）。
+ */
+async function computePeriodTrendFindings(
+  userId: string,
+  currentPeriodKey: string,
+  months: number,
+): Promise<TrendFinding[]> {
+  // 近 months 期的 YYYY-MM（升序，末位为当期）
+  const monthKeys: string[] = [];
+  for (let i = months - 1; i >= 0; i--) {
+    monthKeys.push(shiftMonthKey(currentPeriodKey, -i));
+  }
+
+  // 健康分时序：reportRepository.list 已按 generatedAt desc，故每月首见即最新
+  const reports = await reportRepository(userId).list();
+  const scoreByMonth = new Map<string, number>();
+  for (const r of reports) {
+    if (r.score == null) continue;
+    const m = monthKey(r.periodStart);
+    if (!scoreByMonth.has(m)) scoreByMonth.set(m, Number(r.score));
+  }
+  const healthScore: TrendPoint[] = monthKeys
+    .map((m) => ({ period: m, value: scoreByMonth.get(m) }))
+    .filter((p): p is TrendPoint => p.value !== undefined);
+
+  // savings_rate 时序：取这些月份对应周期的持久化 findings
+  // findings 的 periodStart 为月首日（YYYY-MM-DD）；以月首日查询
+  const periodStarts = monthKeys.map((m) => `${m}-01`);
+  const rows = await findingRepository(userId).listByPeriodStarts(periodStarts);
+  const srByMonth = new Map<string, number>();
+  for (const f of rows) {
+    if (f.metric === 'savings_rate' && f.value != null) {
+      srByMonth.set(monthKey(f.periodStart), Number(f.value));
+    }
+  }
+  const savingsRate: TrendPoint[] = monthKeys
+    .map((m) => ({ period: m, value: srByMonth.get(m) }))
+    .filter((p): p is TrendPoint => p.value !== undefined);
+
+  return computeTrendFindings({ savingsRate, healthScore });
 }
 
 /** 偏好是否当前生效静音（muted 且未过期）。 */

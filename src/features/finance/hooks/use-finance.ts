@@ -862,3 +862,255 @@ export function useApplyApproval() {
     },
   });
 }
+
+// ===== Phase 6 US3：多期趋势对比 =====
+
+/** 多期趋势对比（按指标时序 + 方向 + 显著恶化标记）。 */
+export function useTrends(
+  params?: {
+    metrics?: import('../api').TrendMetricDTO[];
+    periods?: number;
+  },
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: ['finance', 'trends', params ?? {}],
+    queryFn: () => financeApi.getTrends(params),
+    enabled,
+  });
+}
+
+// ===== Phase 5：预算 =====
+
+/** 预算列表（含当前周期派生状态）。 */
+export function useBudgets(params?: { active?: boolean; period?: string }) {
+  return useQuery({
+    queryKey: ['finance', 'budgets', params ?? {}],
+    queryFn: () => financeApi.listBudgets(params),
+  });
+}
+
+/** 预算详情（含当前周期状态）。 */
+export function useBudget(id: string | null | undefined, period?: string) {
+  return useQuery({
+    queryKey: ['finance', 'budget', id, period ?? ''],
+    queryFn: () => financeApi.getBudget(id!, period),
+    enabled: Boolean(id),
+  });
+}
+
+export function useCreateBudget() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: Parameters<typeof financeApi.createBudget>[0]) =>
+      financeApi.createBudget(payload),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['finance', 'budgets'] });
+      void qc.invalidateQueries({ queryKey: ['finance', 'budget-alerts'] });
+    },
+  });
+}
+
+export function useUpdateBudget() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: Parameters<typeof financeApi.updateBudget>[1] }) =>
+      financeApi.updateBudget(id, payload),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['finance', 'budgets'] });
+      void qc.invalidateQueries({ queryKey: ['finance', 'budget'] });
+      void qc.invalidateQueries({ queryKey: ['finance', 'budget-alerts'] });
+    },
+  });
+}
+
+export function useDeleteBudget() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => financeApi.deleteBudget(id),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['finance', 'budgets'] });
+      void qc.invalidateQueries({ queryKey: ['finance', 'budget-alerts'] });
+    },
+  });
+}
+
+/** 当前周期预警汇总（即将超支/已超支）。 */
+export function useBudgetAlerts(params?: { period?: string; status?: 'warning' | 'overrun' }) {
+  return useQuery({
+    queryKey: ['finance', 'budget-alerts', params ?? {}],
+    queryFn: () => financeApi.listBudgetAlerts(params),
+  });
+}
+
+/** 预算历史周期快照（不可变）。 */
+export function useBudgetPeriods(id: string | null | undefined, from?: string, to?: string) {
+  return useQuery({
+    queryKey: ['finance', 'budget-periods', id, from ?? '', to ?? ''],
+    queryFn: () => financeApi.listBudgetPeriods(id!, from, to),
+    enabled: Boolean(id),
+  });
+}
+
+// ===== Phase 5：目标 =====
+
+/** 目标列表（含 ETA）。 */
+export function useGoals(status?: 'active' | 'archived') {
+  return useQuery({
+    queryKey: ['finance', 'goals', status ?? 'active'],
+    queryFn: () => financeApi.listGoals(status),
+  });
+}
+
+export function useCreateGoal() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: Parameters<typeof financeApi.createGoal>[0]) =>
+      financeApi.createGoal(payload),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['finance', 'goals'] });
+    },
+  });
+}
+
+export function useUpdateGoal() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: Parameters<typeof financeApi.updateGoal>[1] }) =>
+      financeApi.updateGoal(id, payload),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['finance', 'goals'] });
+      void qc.invalidateQueries({ queryKey: ['finance', 'goal-progress'] });
+    },
+  });
+}
+
+export function useDeleteGoal() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => financeApi.deleteGoal(id),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['finance', 'goals'] });
+    },
+  });
+}
+
+/** 目标进度 + ETA 明细（surplusSeries 可解释可追溯，SC-003）。 */
+export function useGoalProgress(id: string | null | undefined, windowMonths?: number) {
+  return useQuery({
+    queryKey: ['finance', 'goal-progress', id, windowMonths ?? 3],
+    queryFn: () => financeApi.getGoalProgress(id!, windowMonths),
+    enabled: Boolean(id),
+  });
+}
+
+// ===== Phase 7：高级分析（what-if / 个税 / 退休 / 组合）=====
+//
+// 写操作（创建情景/估算/模拟）成功后失效对应集合；解读为按需 mutation（返回文本旁注）。
+// 结构化数字始终来自引擎结果；解读文本仅旁注（NC5）。
+
+/** US1：我的 what-if 情景列表（不含投影点明细）。 */
+export function useScenarios(familyId?: string) {
+  return useQuery({
+    queryKey: ['finance', 'scenarios', familyId ?? 'me'],
+    queryFn: () => financeApi.listScenarios(familyId),
+  });
+}
+
+/** US1：情景详情（含全部投影点）。 */
+export function useScenario(id: string | null | undefined) {
+  return useQuery({
+    queryKey: ['finance', 'scenario', id],
+    queryFn: () => financeApi.getScenario(id!),
+    enabled: Boolean(id),
+  });
+}
+
+/** US1：计算并保存情景（确定性投影，可复现）。 */
+export function useCreateScenario() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: Parameters<typeof financeApi.createScenario>[0]) =>
+      financeApi.createScenario(payload),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['finance', 'scenarios'] });
+    },
+  });
+}
+
+/** US1：LLM 解读（仅文本旁注，零编造；LLM 不可用→空文本）。 */
+export function useInterpretScenario() {
+  return useMutation({
+    mutationFn: ({ id, familyId }: { id: string; familyId?: string }) =>
+      financeApi.interpretScenario(id, familyId),
+  });
+}
+
+/** US2：取最近一次个税估算（无则 null）。 */
+export function useLatestTax(taxYear?: number, familyId?: string) {
+  return useQuery({
+    queryKey: ['finance', 'tax-estimates', 'latest', taxYear ?? 'current', familyId ?? 'me'],
+    queryFn: () => financeApi.getLatestTaxEstimate(taxYear, familyId),
+  });
+}
+
+/** US2：估算个税（支持年终奖单独/合并对比）。 */
+export function useComputeTax() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: Parameters<typeof financeApi.computeTaxEstimate>[0]) =>
+      financeApi.computeTaxEstimate(payload),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['finance', 'tax-estimates'] });
+    },
+  });
+}
+
+/** US2：LLM 解读计税方式差异（仅文本旁注）。 */
+export function useInterpretTax() {
+  return useMutation({
+    mutationFn: (id: string) => financeApi.interpretTax(id),
+  });
+}
+
+/** US3：取最近一次退休模拟（无则 null）。 */
+export function useLatestRetirement(familyId?: string) {
+  return useQuery({
+    queryKey: ['finance', 'retirement', 'latest', familyId ?? 'me'],
+    queryFn: () => financeApi.getLatestRetirement(familyId),
+  });
+}
+
+/** US3：模拟退休三点区间 + 可持续性。 */
+export function useComputeRetirement() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: Parameters<typeof financeApi.computeRetirement>[0]) =>
+      financeApi.computeRetirement(payload),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['finance', 'retirement'] });
+    },
+  });
+}
+
+/** US3：LLM 解读（仅文本旁注，须保留不确定性原意）。 */
+export function useInterpretRetirement() {
+  return useMutation({
+    mutationFn: (id: string) => financeApi.interpretRetirement(id),
+  });
+}
+
+/** US4：当前持仓的方向建议（随持仓重算覆盖；无持仓→空 hints）。 */
+export function usePortfolioHints(familyId?: string) {
+  return useQuery({
+    queryKey: ['finance', 'portfolio-hints', familyId ?? 'me'],
+    queryFn: () => financeApi.getPortfolioHints(familyId),
+  });
+}
+
+/** US4：LLM 解读方向建议（仅文本旁注，严禁品种/买卖指令）。 */
+export function useInterpretPortfolioHints() {
+  return useMutation({
+    mutationFn: (familyId?: string) => financeApi.interpretPortfolioHints(familyId),
+  });
+}

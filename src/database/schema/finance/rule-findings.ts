@@ -23,6 +23,10 @@ export const FINDING_METRICS = [
   'savings_rate',
   'debt_ratio',
   'emergency_months',
+  // Phase 6 趋势规则（决策 10）：在内存产出，供 trend.service / alert.service 复用，
+  // 不落单期 findings 表（趋势跨多期）；metric 列为 varchar(32)，类型扩展无需迁移。
+  'trend_savings_decline',
+  'trend_health_decline',
 ] as const;
 export type FindingMetric = (typeof FINDING_METRICS)[number];
 

@@ -25,6 +25,15 @@ import { cashFlowForecasts } from './cash-flow-forecasts';
 import { smartAlerts, alertPreferences } from './smart-alerts';
 import { approvals } from './approvals';
 import { advisorSessions, advisorMessages } from './advisor';
+// Phase 5：预算与目标
+import { budgets, budgetPeriods } from './budgets';
+import { goals } from './goals';
+// Phase 7：高级分析
+import { scenarios } from './scenarios';
+import { scenarioProjections } from './scenario-projections';
+import { taxEstimates } from './tax-estimates';
+import { retirementSimulations } from './retirement-simulations';
+import { portfolioHints } from './portfolio-hints';
 
 export const financeAccountsRelations = relations(
   financeAccounts,
@@ -221,3 +230,47 @@ export const approvalsRelations = relations(approvals, ({ many }) => ({
   // 被（多条）顾问消息引用（proposalId）；proposedBy 软引用不建模
   proposedIn: many(advisorMessages),
 }));
+
+// Phase 5：预算 / 预算周期 / 目标
+// budgets.categoryId 为逻辑关联（无 FK 约束），用 one + fields/references 表达用于 query API。
+export const budgetsRelations = relations(budgets, ({ one, many }) => ({
+  category: one(categories, {
+    fields: [budgets.categoryId],
+    references: [categories.id],
+  }),
+  periods: many(budgetPeriods),
+}));
+
+export const budgetPeriodsRelations = relations(budgetPeriods, ({ one }) => ({
+  budget: one(budgets, {
+    fields: [budgetPeriods.budgetId],
+    references: [budgets.id],
+  }),
+}));
+
+// goals.linkedAccountIds 为 jsonb id 数组，不做关系展开（手动按 id 查 accounts）—— 留空占位。
+export const goalsRelations = relations(goals, () => ({}));
+
+// Phase 7：高级分析
+// 情景 ↔ 投影点（一对多；FK 已表达，关系声明供 query API）
+export const scenariosRelations = relations(scenarios, ({ many }) => ({
+  projections: many(scenarioProjections),
+}));
+
+export const scenarioProjectionsRelations = relations(
+  scenarioProjections,
+  ({ one }) => ({
+    scenario: one(scenarios, {
+      fields: [scenarioProjections.scenarioId],
+      references: [scenarios.id],
+    }),
+  }),
+);
+
+// tax/retirement/portfolio 仅 userId 作用域，无表间关系 —— 留空占位保证 barrel 一致。
+export const taxEstimatesRelations = relations(taxEstimates, () => ({}));
+export const retirementSimulationsRelations = relations(
+  retirementSimulations,
+  () => ({}),
+);
+export const portfolioHintsRelations = relations(portfolioHints, () => ({}));

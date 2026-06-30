@@ -15,6 +15,7 @@ import {
 import { assertMemberBelongsToCallerFamily } from '@/services/finance/family.service';
 import { ShareScopeError } from '@/services/finance/balance.service';
 import { transactionRepository } from '@/repositories/finance/transaction.repository';
+import { alertsForTransaction } from '@/services/finance/budget.service';
 import type { TransactionType, TransactionSource } from '@/database/schema/finance';
 
 function parseDate(value: string | null | undefined): Date | undefined {
@@ -102,8 +103,24 @@ export async function POST(request: NextRequest) {
         memberId: v.memberId ?? undefined,
       });
       const withEntries = await transactionRepository(userId).findById(transaction.id);
+      // Phase 5 写后回带（D9，best-effort 非阻塞）：受影响预算的当前 BudgetAlert。
+      let budgetAlerts: Awaited<ReturnType<typeof alertsForTransaction>> | undefined;
+      try {
+        const alerts = await alertsForTransaction(
+          userId,
+          transaction.categoryId,
+          transaction.type,
+          transaction.occurredAt,
+        );
+        if (alerts.length > 0) budgetAlerts = alerts;
+      } catch {
+        // 预算计算失败不影响交易写入
+      }
       return NextResponse.json(
-        { transaction: withEntries ?? { ...transaction, entries: [] } },
+        {
+          transaction: withEntries ?? { ...transaction, entries: [] },
+          ...(budgetAlerts ? { budgetAlerts } : {}),
+        },
         { status: 201 },
       );
     } catch (err) {

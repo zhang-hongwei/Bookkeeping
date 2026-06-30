@@ -42,11 +42,12 @@ export function HealthScorePanel() {
     return <Typography color="text.secondary">加载健康分…</Typography>;
   }
 
-  const total = Number(data.total);
+  const health = data.data;
+  const total = Number(health.total);
   const radarData = DIM_LABELS.map(([key, label]) => ({
     dim: label,
-    score: data.dimensions[key]?.score ?? 0,
-    missing: data.dimensions[key]?.score == null,
+    score: health.dimensions[key]?.score ?? 0,
+    missing: health.dimensions[key]?.score == null,
   }));
 
   return (
@@ -72,7 +73,10 @@ export function HealthScorePanel() {
           </Box>
         </Stack>
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-          投资率维度待 Phase 3 持仓数据接入，已降权不计入总分。
+          投资率维度已接入 Phase 3 持仓；缺数据维度降权不计入总分。
+        </Typography>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+          {data.disclaimer}
         </Typography>
       </CardContent>
     </Card>

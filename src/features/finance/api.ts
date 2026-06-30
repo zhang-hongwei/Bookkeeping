@@ -652,6 +652,264 @@ export interface ApprovalDTO {
   expiresAt: string;
 }
 
+/** Phase 6 US3：多期趋势对比。 */
+export type TrendMetricDTO = 'savings_rate' | 'debt_ratio' | 'emergency_months' | 'score';
+export type TrendDirectionDTO = 'up' | 'down' | 'flat';
+export interface TrendPointDTO {
+  period: string;
+  value: string;
+}
+export interface TrendSeriesDTO {
+  metric: string;
+  points: TrendPointDTO[];
+  direction: TrendDirectionDTO;
+  deteriorating: boolean;
+}
+export interface TrendDTO {
+  series: TrendSeriesDTO[];
+}
+
+/** Phase 5：预算与目标。 */
+export type BudgetPeriodTypeDTO = 'month' | 'week' | 'year';
+export type BudgetStatusDTO = 'normal' | 'warning' | 'overrun';
+export interface BudgetDTO {
+  id: string;
+  categoryId: string | null;
+  name: string | null;
+  amount: string;
+  periodType: BudgetPeriodTypeDTO;
+  alertThreshold: string;
+  rollover: boolean;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+  period: { start: string; end: string };
+  spent: string;
+  remaining: string;
+  ratio: string;
+  status: BudgetStatusDTO;
+  riskLevel: string;
+  verdict: string;
+}
+export interface BudgetAlertDTO {
+  budgetId: string;
+  categoryId: string | null;
+  period: { start: string; end: string };
+  budgetAmount: string;
+  spent: string;
+  remaining: string;
+  ratio: string;
+  status: BudgetStatusDTO;
+  riskLevel: string;
+  verdict: string;
+}
+export interface BudgetPeriodDTO {
+  id: string;
+  budgetId: string;
+  periodStart: string;
+  periodEnd: string;
+  amountSnapshot: string;
+  spentSnapshot: string;
+  status: BudgetStatusDTO;
+  closedAt: string;
+}
+export type GoalProgressBasisDTO = 'manual' | 'linked' | 'net_worth';
+export type GoalEtaStatusDTO = 'on_track' | 'at_risk' | 'unreachable' | 'completed';
+export interface GoalEtaDTO {
+  etaDate: string | null;
+  etaStatus: GoalEtaStatusDTO;
+  monthsToGoal: number | null;
+  avgMonthlySurplus: string;
+  windowMonths: number;
+}
+export interface GoalDTO {
+  id: string;
+  name: string;
+  targetAmount: string;
+  targetDate: string | null;
+  progressBasis: GoalProgressBasisDTO;
+  linkedAccountIds: string[];
+  manualAmount: string;
+  notes: string | null;
+  status: string;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  currentAmount: string;
+  progressRate: string;
+  completed: boolean;
+  eta: GoalEtaDTO;
+}
+export interface SurplusPointDTO {
+  month: string;
+  income: string;
+  expense: string;
+  surplus: string;
+}
+export interface GoalProgressDTO {
+  currentAmount: string;
+  targetAmount: string;
+  remaining: string;
+  progressRate: string;
+  completed: boolean;
+  surplusSeries: SurplusPointDTO[];
+  eta: GoalEtaDTO;
+}
+export interface GoalProgressResponse {
+  goal: GoalDTO;
+  progress: GoalProgressDTO;
+}
+
+// ===== Phase 7：高级分析（what-if / 个税 / 退休 / 组合）DTO =====
+//
+// 红线（NC5）：所有数字由确定性引擎在服务端计算；前端始终渲染结构化数字，
+// /interpret 返回的解读文本仅作旁注（不依赖其数字）。disclaimers[] 必显著渲染。
+
+export type ScenarioKindDTO =
+  | 'income_cut'
+  | 'rate_hike'
+  | 'lump_expense'
+  | 'unemployment'
+  | 'custom';
+export type AnalysisStatusDTO = 'ok' | 'degraded';
+
+export interface ScenarioAssumptionsDTO {
+  incomeDeltaPct: number;
+  durationMonths: number;
+  rateDeltaPct?: number | null;
+  lumpExpense?: string | null;
+  affectedMonth?: number | null;
+}
+
+export interface BaselineSnapshotDTO {
+  netWorth: string;
+  monthlySurpluses: string[];
+  emergencyMonths: number | null;
+  asOfDate: string;
+}
+
+export interface ScenarioPointDTO {
+  monthOffset: number;
+  baselineNetWorth: string;
+  scenarioNetWorth: string;
+  netWorthDelta: string;
+  baselineEmergencyMonths: string | null;
+  scenarioEmergencyMonths: string | null;
+}
+
+export interface ScenarioDTO {
+  id: string;
+  name: string;
+  kind: ScenarioKindDTO;
+  assumptions: ScenarioAssumptionsDTO;
+  horizonMonths: number;
+  status: AnalysisStatusDTO;
+  missing: string[];
+  baselineSnapshot: BaselineSnapshotDTO;
+  projections: ScenarioPointDTO[];
+  engineVersion: string;
+  disclaimers: string[];
+}
+
+export interface CreateScenarioPayload {
+  name: string;
+  kind: ScenarioKindDTO;
+  assumptions: ScenarioAssumptionsDTO;
+  horizonMonths: number;
+  familyId?: string;
+}
+
+export interface TaxInputsDTO {
+  annualIncome: string;
+  insuranceAndFund: string;
+  specialDeductions: Record<string, string>;
+  annualBonus?: string | null;
+}
+
+export interface MethodComparisonDTO {
+  separate: { taxAmount: string };
+  merged: { taxAmount: string };
+  diff: string;
+  better: 'separate' | 'merged';
+}
+
+export interface TaxHintDTO {
+  text: string;
+}
+
+export interface TaxEstimateDTO {
+  id: string;
+  taxYear: number;
+  ruleVintage: string;
+  inputs: TaxInputsDTO;
+  methodComparison: MethodComparisonDTO;
+  totalTaxAmount: string;
+  effectiveRate: string | null;
+  hints: TaxHintDTO[];
+  status: AnalysisStatusDTO;
+  missing: string[];
+  engineVersion: string;
+  disclaimers: string[];
+}
+
+export interface ComputeTaxPayload {
+  taxYear: number;
+  inputs: TaxInputsDTO;
+  familyId?: string;
+}
+
+export interface RetirementAssumptionsDTO {
+  currentAge: number;
+  retirementAge: number;
+  monthlyContribution: string;
+  realReturnRatePct: number;
+  inflationPct: number;
+  postRetirementMonthlySpend: string;
+  withdrawalRatePct: number;
+}
+
+export interface RetirementPointDTO {
+  retirementCorpus: string;
+  monthlySustainable: string;
+  depletionAge: number | null;
+}
+
+export interface RetirementDTO {
+  id: string;
+  assumptions: RetirementAssumptionsDTO;
+  horizonMonths: number;
+  resultPessimistic: RetirementPointDTO;
+  resultBaseline: RetirementPointDTO;
+  resultOptimistic: RetirementPointDTO;
+  sustainableVerdict: 'sustainable' | 'marginal' | 'insufficient';
+  status: AnalysisStatusDTO;
+  missing: string[];
+  engineVersion: string;
+  disclaimers: string[];
+}
+
+export interface ComputeRetirementPayload {
+  assumptions: RetirementAssumptionsDTO;
+  familyId?: string;
+}
+
+export interface PortfolioHintDTO {
+  assetClass: string;
+  currentRatio: string;
+  targetBand: { min: number; max: number };
+  direction: 'under' | 'over' | 'ok';
+  reason: string;
+}
+
+export interface PortfolioHintsDTO {
+  batchId: string;
+  targetBandsVersion: string;
+  totalMarketValue: string;
+  hints: PortfolioHintDTO[];
+  engineVersion: string;
+  disclaimers: string[];
+}
+
 const BASE = '/api/finance';
 
 export const financeApi = {
@@ -800,7 +1058,7 @@ export const financeApi = {
       `${BASE}/findings?periodStart=${periodStart}&periodEnd=${periodEnd}`,
     ),
   getHealthScore: (periodStart: string, periodEnd: string) =>
-    http<HealthScoreDTO>(
+    http<DisclaimerEnvelope<HealthScoreDTO>>(
       `${BASE}/health-score?periodStart=${periodStart}&periodEnd=${periodEnd}`,
     ),
   generateMonthly: (periodStart: string, periodEnd: string) =>
@@ -1045,4 +1303,173 @@ export const financeApi = {
       `${BASE}/approvals/${id}/apply`,
       { method: 'POST' },
     ),
+
+  // ===== Phase 6 US3：多期趋势对比 =====
+  getTrends: (params?: { metrics?: TrendMetricDTO[]; periods?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.metrics && params.metrics.length > 0) {
+      qs.set('metric', params.metrics.join(','));
+    }
+    if (params?.periods) qs.set('periods', String(params.periods));
+    const query = qs.toString();
+    return http<DisclaimerEnvelope<TrendDTO>>(`${BASE}/trends${query ? `?${query}` : ''}`);
+  },
+
+  // ===== Phase 5：预算 =====
+  listBudgets: (params?: { active?: boolean; period?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.active !== undefined) qs.set('active', String(params.active));
+    if (params?.period) qs.set('period', params.period);
+    const query = qs.toString();
+    return http<{ budgets: BudgetDTO[] }>(`${BASE}/budgets${query ? `?${query}` : ''}`);
+  },
+  createBudget: (payload: {
+    categoryId?: string | null;
+    name?: string | null;
+    amount: string;
+    periodType?: BudgetPeriodTypeDTO;
+    alertThreshold?: string;
+  }) =>
+    http<{ budget: BudgetDTO }>(`${BASE}/budgets`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  getBudget: (id: string, period?: string) => {
+    const qs = period ? `?period=${period}` : '';
+    return http<{ budget: BudgetDTO }>(`${BASE}/budgets/${id}${qs}`);
+  },
+  updateBudget: (id: string, payload: Partial<{
+    name: string | null;
+    amount: string;
+    periodType: BudgetPeriodTypeDTO;
+    alertThreshold: string;
+    active: boolean;
+  }>) =>
+    http<{ budget: BudgetDTO }>(`${BASE}/budgets/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+  deleteBudget: (id: string) =>
+    http<{ ok: boolean }>(`${BASE}/budgets/${id}`, { method: 'DELETE' }),
+  listBudgetAlerts: (params?: { period?: string; status?: 'warning' | 'overrun' }) => {
+    const qs = new URLSearchParams();
+    if (params?.period) qs.set('period', params.period);
+    if (params?.status) qs.set('status', params.status);
+    const query = qs.toString();
+    return http<{ alerts: BudgetAlertDTO[] }>(`${BASE}/budgets/alerts${query ? `?${query}` : ''}`);
+  },
+  listBudgetPeriods: (id: string, from?: string, to?: string) => {
+    const qs = new URLSearchParams();
+    if (from) qs.set('from', from);
+    if (to) qs.set('to', to);
+    const query = qs.toString();
+    return http<{ periods: BudgetPeriodDTO[] }>(`${BASE}/budgets/${id}/periods${query ? `?${query}` : ''}`);
+  },
+
+  // ===== Phase 5：目标 =====
+  listGoals: (status?: 'active' | 'archived') => {
+    const qs = status ? `?status=${status}` : '';
+    return http<{ goals: GoalDTO[] }>(`${BASE}/goals${qs}`);
+  },
+  createGoal: (payload: {
+    name: string;
+    targetAmount: string;
+    targetDate?: string | null;
+    progressBasis?: GoalProgressBasisDTO;
+    linkedAccountIds?: string[];
+    manualAmount?: string;
+    notes?: string | null;
+  }) =>
+    http<{ goal: GoalDTO }>(`${BASE}/goals`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  getGoal: (id: string) => http<{ goal: GoalDTO }>(`${BASE}/goals/${id}`),
+  updateGoal: (id: string, payload: Partial<{
+    name: string;
+    targetAmount: string;
+    targetDate: string | null;
+    progressBasis: GoalProgressBasisDTO;
+    linkedAccountIds: string[];
+    manualAmount: string;
+    notes: string | null;
+    status: 'active' | 'archived';
+  }>) =>
+    http<{ goal: GoalDTO }>(`${BASE}/goals/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+  deleteGoal: (id: string) =>
+    http<{ ok: boolean }>(`${BASE}/goals/${id}`, { method: 'DELETE' }),
+  getGoalProgress: (id: string, windowMonths?: number) => {
+    const qs = windowMonths ? `?windowMonths=${windowMonths}` : '';
+    return http<GoalProgressResponse>(`${BASE}/goals/${id}/progress${qs}`);
+  },
+
+  // ===== Phase 7：高级分析（what-if / 个税 / 退休 / 组合）=====
+
+  // US1：what-if 情景
+  createScenario: (payload: CreateScenarioPayload) =>
+    http<{ scenario: ScenarioDTO }>(`${BASE}/scenarios`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  listScenarios: (familyId?: string) => {
+    const qs = familyId ? `?familyId=${familyId}` : '';
+    return http<{ scenarios: ScenarioDTO[] }>(`${BASE}/scenarios${qs}`);
+  },
+  getScenario: (id: string) => http<{ scenario: ScenarioDTO }>(`${BASE}/scenarios/${id}`),
+  interpretScenario: (id: string, familyId?: string) =>
+    http<{ text: string }>(`${BASE}/scenarios/${id}/interpret`, {
+      method: 'POST',
+      body: JSON.stringify(familyId ? { familyId } : {}),
+    }),
+
+  // US2：个税估算
+  computeTaxEstimate: (payload: ComputeTaxPayload) =>
+    http<{ taxEstimate: TaxEstimateDTO }>(`${BASE}/tax-estimates`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  getLatestTaxEstimate: (taxYear?: number, familyId?: string) => {
+    const qs = new URLSearchParams();
+    if (taxYear) qs.set('taxYear', String(taxYear));
+    if (familyId) qs.set('familyId', familyId);
+    const query = qs.toString();
+    return http<{ taxEstimate: TaxEstimateDTO | null }>(
+      `${BASE}/tax-estimates${query ? `?${query}` : ''}`,
+    );
+  },
+  interpretTax: (id: string) =>
+    http<{ text: string }>(`${BASE}/tax-estimates/${id}/interpret`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    }),
+
+  // US3：退休模拟
+  computeRetirement: (payload: ComputeRetirementPayload) =>
+    http<{ retirement: RetirementDTO }>(`${BASE}/retirement`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  getLatestRetirement: (familyId?: string) => {
+    const qs = familyId ? `?familyId=${familyId}` : '';
+    return http<{ retirement: RetirementDTO | null }>(`${BASE}/retirement/latest${qs}`);
+  },
+  interpretRetirement: (id: string) =>
+    http<{ text: string }>(`${BASE}/retirement/${id}/interpret`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    }),
+
+  // US4：组合优化方向（GET 随持仓重算覆盖）
+  getPortfolioHints: (familyId?: string) => {
+    const qs = familyId ? `?familyId=${familyId}` : '';
+    return http<{ portfolioHints: PortfolioHintsDTO }>(`${BASE}/portfolio-hints${qs}`);
+  },
+  interpretPortfolioHints: (familyId?: string) =>
+    http<{ text: string }>(`${BASE}/portfolio-hints/interpret`, {
+      method: 'POST',
+      body: JSON.stringify(familyId ? { familyId } : {}),
+    }),
 };

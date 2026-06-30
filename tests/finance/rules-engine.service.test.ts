@@ -7,6 +7,10 @@ import {
   computeFindingsFromData,
   computeHealthScore,
   cashflowStabilityScore,
+  isConsecutiveTrend,
+  trendDirection,
+  computeTrendFindings,
+  TREND_DECLINE_PERIODS,
 } from '@/services/finance/rules-engine.service';
 
 describe('computeFindingsFromData（T027 公式，转账不计收支）', () => {
@@ -175,5 +179,111 @@ describe('computeHealthScore cashflow（T004，反映方差）', () => {
       surplusSeries: ['4000', '3800', '4200'],
     }).dimensions.cashflow.score;
     expect(a).toBe(b);
+  });
+});
+
+// ===== Phase 6 US3：趋势规则（决策 10 / T042）=====
+
+describe('isConsecutiveTrend（连续单调判定）', () => {
+  it('末尾连续 N 期严格递减 → true', () => {
+    expect(isConsecutiveTrend([0.5, 0.4, 0.3], 'down')).toBe(true);
+    expect(isConsecutiveTrend([0.6, 0.5, 0.4, 0.3], 'down')).toBe(true); // 超过 N 期，看末尾 N
+  });
+
+  it('末尾连续 N 期严格递增（up）→ true', () => {
+    expect(isConsecutiveTrend([0.2, 0.3, 0.4], 'up')).toBe(true);
+  });
+
+  it('非单调（含相等或反弹）→ false', () => {
+    expect(isConsecutiveTrend([0.5, 0.5, 0.3], 'down')).toBe(false); // 相等不算严格递减
+    expect(isConsecutiveTrend([0.4, 0.5, 0.3], 'down')).toBe(false); // 末位反弹
+  });
+
+  it('序列长度不足 → false（不编造趋势）', () => {
+    expect(isConsecutiveTrend([0.5, 0.4], 'down')).toBe(false);
+    expect(isConsecutiveTrend([], 'down')).toBe(false);
+  });
+});
+
+describe('trendDirection（方向判定）', () => {
+  it('首末比较：升/降/平稳', () => {
+    expect(trendDirection([0.3, 0.4, 0.5])).toBe('up');
+    expect(trendDirection([0.5, 0.4, 0.3])).toBe('down');
+    expect(trendDirection([0.4, 0.4])).toBe('flat');
+  });
+
+  it('不足两点 → flat', () => {
+    expect(trendDirection([0.4])).toBe('flat');
+    expect(trendDirection([])).toBe('flat');
+  });
+});
+
+describe('computeTrendFindings（决策 10，多期趋势结论）', () => {
+  it('储蓄率连续下降 → trend_savings_decline（high）+ periods 非空（I1）', () => {
+    const out = computeTrendFindings({
+      savingsRate: [
+        { period: '2026-04', value: 0.5 },
+        { period: '2026-05', value: 0.4 },
+        { period: '2026-06', value: 0.3 },
+      ],
+      healthScore: [
+        { period: '2026-04', value: 80 },
+        { period: '2026-05', value: 80 },
+        { period: '2026-06', value: 80 },
+      ],
+    });
+    const ts = out.find((f) => f.metric === 'trend_savings_decline');
+    expect(ts).toBeDefined();
+    expect(ts!.riskLevel).toBe('high');
+    expect(ts!.periods).toHaveLength(TREND_DECLINE_PERIODS);
+    expect(ts!.verdict).toContain('储蓄率');
+  });
+
+  it('健康分连续下降 → trend_health_decline', () => {
+    const out = computeTrendFindings({
+      savingsRate: [
+        { period: '2026-04', value: 0.4 },
+        { period: '2026-05', value: 0.4 },
+        { period: '2026-06', value: 0.4 },
+      ],
+      healthScore: [
+        { period: '2026-04', value: 80 },
+        { period: '2026-05', value: 70 },
+        { period: '2026-06', value: 60 },
+      ],
+    });
+    expect(out.find((f) => f.metric === 'trend_health_decline')).toBeDefined();
+  });
+
+  it('无显著恶化 → 空数组（不编造）', () => {
+    const out = computeTrendFindings({
+      savingsRate: [
+        { period: '2026-04', value: 0.3 },
+        { period: '2026-05', value: 0.4 },
+        { period: '2026-06', value: 0.5 },
+      ],
+      healthScore: [
+        { period: '2026-04', value: 60 },
+        { period: '2026-05', value: 70 },
+        { period: '2026-06', value: 80 },
+      ],
+    });
+    expect(out).toEqual([]);
+  });
+
+  it('确定性可复现：相同输入结论一致', () => {
+    const input = {
+      savingsRate: [
+        { period: '2026-04', value: 0.5 },
+        { period: '2026-05', value: 0.4 },
+        { period: '2026-06', value: 0.3 },
+      ],
+      healthScore: [
+        { period: '2026-04', value: 90 },
+        { period: '2026-05', value: 80 },
+        { period: '2026-06', value: 70 },
+      ],
+    };
+    expect(computeTrendFindings(input)).toEqual(computeTrendFindings(input));
   });
 });

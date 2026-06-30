@@ -14,6 +14,7 @@ import {
 import { assertMemberBelongsToCallerFamily } from '@/services/finance/family.service';
 import { ShareScopeError } from '@/services/finance/balance.service';
 import { transactionRepository } from '@/repositories/finance/transaction.repository';
+import { alertsForTransaction } from '@/services/finance/budget.service';
 
 function parseDate(value: string | null | undefined): Date | undefined {
   if (!value) return undefined;
@@ -71,8 +72,22 @@ export async function PATCH(
         memberId: v.memberId,
       });
       const withEntries = await transactionRepository(userId).findById(transaction.id);
+      // Phase 5 写后回带（D9，best-effort 非阻塞）
+      let budgetAlerts: Awaited<ReturnType<typeof alertsForTransaction>> | undefined;
+      try {
+        const alerts = await alertsForTransaction(
+          userId,
+          transaction.categoryId,
+          transaction.type,
+          transaction.occurredAt,
+        );
+        if (alerts.length > 0) budgetAlerts = alerts;
+      } catch {
+        // 预算计算失败不影响交易写入
+      }
       return NextResponse.json({
         transaction: withEntries ?? { ...transaction, entries: [] },
+        ...(budgetAlerts ? { budgetAlerts } : {}),
       });
     } catch (err) {
       if (err instanceof ShareScopeError) {

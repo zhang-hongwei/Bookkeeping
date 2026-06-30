@@ -3,10 +3,19 @@
  * - GET /api/finance/health-score?periodStart=&periodEnd=
  *   findings 加权 0–100 + 各维度（缺失降权标注）。
  * - Phase 6：investmentRate 接 Phase 3 持仓、cashflow 为方差稳定性评分（决策 12）。
+ * - FR-009：响应经 DisclaimerEnvelope 包装（disclaimer + sourceRefs）。
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { requireUserId } from '@/app/api/finance/_lib/auth';
-import { computeHealthScoreForUser } from '@/services/finance/rules-engine.service';
+import {
+  withDisclaimer,
+  toSourceRef,
+} from '@/app/api/finance/_lib/serialize';
+import {
+  computeFindings,
+  computeHealthScoreForUser,
+  monthKey,
+} from '@/services/finance/rules-engine.service';
 
 export async function GET(request: NextRequest) {
   try {
@@ -24,8 +33,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const health = await computeHealthScoreForUser(userId, { start: periodStart, end: periodEnd });
-    return NextResponse.json({ total: health.total, dimensions: health.dimensions });
+    const period = { start: periodStart, end: periodEnd };
+    const [health, findings] = await Promise.all([
+      computeHealthScoreForUser(userId, period),
+      computeFindings(userId, period),
+    ]);
+    const refs = findings.map((f) => toSourceRef(f, monthKey(periodStart)));
+    return NextResponse.json(
+      withDisclaimer({ total: health.total, dimensions: health.dimensions }, refs),
+    );
   } catch (error) {
     console.error('GET /api/finance/health-score error:', error);
     return NextResponse.json(

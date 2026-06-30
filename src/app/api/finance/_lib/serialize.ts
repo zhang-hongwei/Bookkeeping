@@ -23,6 +23,16 @@ import type {
   AdvisorSessionItem,
   AdvisorMessageItem,
   ApprovalItem,
+  ScenarioItem,
+  ScenarioProjectionItem,
+  ScenarioKind,
+  ScenarioAssumptions,
+  BaselineSnapshot,
+  GoalImpact,
+  TaxEstimateItem,
+  RetirementSimulationItem,
+  RetirementPoint,
+  PortfolioHintItem,
 } from '@/database/schema/finance';
 
 export interface AssetApiDTO {
@@ -527,5 +537,361 @@ export function toApprovalDto(a: ApprovalItem): ApprovalDTO {
     appliedAt: a.appliedAt ? a.appliedAt.toISOString() : null,
     appliedResult: a.appliedResult,
     expiresAt: a.expiresAt.toISOString(),
+  };
+}
+
+// ===== Phase 6 US3：多期趋势对比 DTO =====
+
+export interface TrendPointDTO {
+  period: string; // YYYY-MM
+  value: string; // decimal 字符串（直通 finding/report，I4）
+}
+
+export interface TrendSeriesDTO {
+  metric: string;
+  points: TrendPointDTO[];
+  direction: 'up' | 'down' | 'flat';
+  deteriorating: boolean;
+}
+
+export interface TrendDTO {
+  series: TrendSeriesDTO[];
+}
+
+/** 趋势视图 → DTO（结构一致；显式映射便于契约锁定）。 */
+export function toTrendDto(
+  view: TrendDTO | { series: TrendSeriesDTO[] },
+): TrendDTO {
+  return { series: view.series };
+}
+
+/**
+ * 趋势来源锚点：各指标各期实测值（SC-002 可追溯）。
+ * deteriorating 的指标标 high，其余 none；按 metric+period 去重。
+ */
+export function trendSourceRefs(series: TrendSeriesDTO[]): SourceRef[] {
+  const out: SourceRef[] = [];
+  const seen = new Set<string>();
+  for (const s of series) {
+    for (const p of s.points) {
+      const key = `${s.metric}|${p.period}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({
+        metric: s.metric as FindingMetric,
+        period: p.period,
+        value: p.value,
+        verdict: '多期趋势实测值',
+        riskLevel: s.deteriorating ? 'high' : 'none',
+      });
+    }
+  }
+  return out;
+}
+
+// ===== Phase 5：预算与目标 DTO =====
+
+export interface BudgetDTO {
+  id: string;
+  categoryId: string | null;
+  name: string | null;
+  amount: string;
+  periodType: string;
+  alertThreshold: string;
+  rollover: boolean;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+  period: { start: string; end: string };
+  spent: string;
+  remaining: string;
+  ratio: string;
+  status: string;
+  riskLevel: string;
+  verdict: string;
+}
+
+export function toBudgetDto(b: BudgetDTO): BudgetDTO {
+  return { ...b };
+}
+
+export interface BudgetAlertDTO {
+  budgetId: string;
+  categoryId: string | null;
+  period: { start: string; end: string };
+  budgetAmount: string;
+  spent: string;
+  remaining: string;
+  ratio: string;
+  status: string;
+  riskLevel: string;
+  verdict: string;
+}
+
+export function toBudgetAlertDto(a: BudgetAlertDTO): BudgetAlertDTO {
+  return { ...a };
+}
+
+export interface BudgetPeriodDTO {
+  id: string;
+  budgetId: string;
+  periodStart: string;
+  periodEnd: string;
+  amountSnapshot: string;
+  spentSnapshot: string;
+  status: string;
+  closedAt: string;
+}
+
+/** BudgetPeriodItem（DB 行）→ DTO。 */
+export function toBudgetPeriodDto(p: {
+  id: string;
+  budgetId: string;
+  periodStart: string;
+  periodEnd: string;
+  amountSnapshot: string;
+  spentSnapshot: string;
+  status: string;
+  closedAt: Date;
+}): BudgetPeriodDTO {
+  return {
+    id: p.id,
+    budgetId: p.budgetId,
+    periodStart: p.periodStart,
+    periodEnd: p.periodEnd,
+    amountSnapshot: p.amountSnapshot,
+    spentSnapshot: p.spentSnapshot,
+    status: p.status,
+    closedAt: p.closedAt.toISOString(),
+  };
+}
+
+export interface GoalDTO {
+  id: string;
+  name: string;
+  targetAmount: string;
+  targetDate: string | null;
+  progressBasis: string;
+  linkedAccountIds: string[];
+  manualAmount: string;
+  notes: string | null;
+  status: string;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  currentAmount: string;
+  progressRate: string;
+  completed: boolean;
+  eta: {
+    etaDate: string | null;
+    etaStatus: string;
+    monthsToGoal: number | null;
+    avgMonthlySurplus: string;
+    windowMonths: number;
+  };
+}
+
+export function toGoalDto(g: GoalDTO): GoalDTO {
+  return { ...g };
+}
+
+export interface SurplusPointDTO {
+  month: string;
+  income: string;
+  expense: string;
+  surplus: string;
+}
+
+export interface GoalProgressDTO {
+  currentAmount: string;
+  targetAmount: string;
+  remaining: string;
+  progressRate: string;
+  completed: boolean;
+  surplusSeries: SurplusPointDTO[];
+  eta: GoalDTO['eta'];
+}
+
+export function toGoalProgressDto(
+  goal: GoalDTO,
+  progress: {
+    currentAmount: string;
+    targetAmount: string;
+    remaining: string;
+    progressRate: string;
+    completed: boolean;
+    eta: GoalDTO['eta'];
+  },
+  surplusSeries: SurplusPointDTO[],
+): { goal: GoalDTO; progress: GoalProgressDTO } {
+  return {
+    goal,
+    progress: { ...progress, surplusSeries },
+  };
+}
+
+// ===== Phase 7：高级分析 DTO（what-if / 个税 / 退休 / 组合）=====
+
+export interface ScenarioPointDTO {
+  monthOffset: number;
+  baselineNetWorth: string;
+  scenarioNetWorth: string;
+  netWorthDelta: string;
+  baselineEmergencyMonths: string | null;
+  scenarioEmergencyMonths: string | null;
+}
+
+export interface ScenarioDTO {
+  id: string;
+  name: string;
+  kind: ScenarioKind;
+  assumptions: ScenarioAssumptions;
+  horizonMonths: number;
+  status: 'ok' | 'degraded';
+  missing: string[];
+  baselineSnapshot: BaselineSnapshot;
+  projections: ScenarioPointDTO[];
+  engineVersion: string;
+  disclaimers: string[];
+}
+
+export function toScenarioPointDto(p: ScenarioProjectionItem): ScenarioPointDTO {
+  return {
+    monthOffset: p.monthOffset,
+    baselineNetWorth: p.baselineNetWorth ?? '0',
+    scenarioNetWorth: p.scenarioNetWorth ?? '0',
+    netWorthDelta: p.netWorthDelta ?? '0',
+    baselineEmergencyMonths: p.baselineEmergencyMonths ?? null,
+    scenarioEmergencyMonths: p.scenarioEmergencyMonths ?? null,
+  };
+}
+
+export function toScenarioDto(
+  s: ScenarioItem,
+  projections: ScenarioProjectionItem[],
+): ScenarioDTO {
+  return {
+    id: s.id,
+    name: s.name,
+    kind: s.kind,
+    assumptions: s.assumptions,
+    horizonMonths: s.horizonMonths,
+    status: s.status,
+    missing: s.missing,
+    baselineSnapshot: s.baselineSnapshot,
+    projections: projections.map(toScenarioPointDto),
+    engineVersion: s.engineVersion,
+    disclaimers: s.disclaimers,
+  };
+}
+
+export interface TaxEstimateDTO {
+  id: string;
+  taxYear: number;
+  ruleVintage: string;
+  inputs: TaxEstimateItem['inputs'];
+  methodComparison: TaxEstimateItem['methodComparison'];
+  totalTaxAmount: string;
+  effectiveRate: string | null;
+  hints: TaxEstimateItem['hints'];
+  status: 'ok' | 'degraded';
+  missing: string[];
+  engineVersion: string;
+  disclaimers: string[];
+}
+
+export function toTaxEstimateDto(t: TaxEstimateItem): TaxEstimateDTO {
+  return {
+    id: t.id,
+    taxYear: t.taxYear,
+    ruleVintage: t.ruleVintage,
+    inputs: t.inputs,
+    methodComparison: t.methodComparison,
+    totalTaxAmount: t.totalTaxAmount,
+    effectiveRate: t.effectiveRate,
+    hints: t.hints,
+    status: t.status,
+    missing: t.missing,
+    engineVersion: t.engineVersion,
+    disclaimers: t.disclaimers,
+  };
+}
+
+export function toRetirementPointDto(p: RetirementPoint): RetirementPoint {
+  return { ...p };
+}
+
+export interface RetirementDTO {
+  id: string;
+  assumptions: RetirementSimulationItem['assumptions'];
+  horizonMonths: number;
+  resultPessimistic: RetirementPoint;
+  resultBaseline: RetirementPoint;
+  resultOptimistic: RetirementPoint;
+  sustainableVerdict: string;
+  status: 'ok' | 'degraded';
+  missing: string[];
+  engineVersion: string;
+  disclaimers: string[];
+}
+
+export function toRetirementDto(r: RetirementSimulationItem): RetirementDTO {
+  return {
+    id: r.id,
+    assumptions: r.assumptions,
+    horizonMonths: r.horizonMonths,
+    resultPessimistic: r.resultPessimistic,
+    resultBaseline: r.resultBaseline,
+    resultOptimistic: r.resultOptimistic,
+    sustainableVerdict: r.sustainableVerdict,
+    status: r.status,
+    missing: r.missing,
+    engineVersion: r.engineVersion,
+    disclaimers: r.disclaimers,
+  };
+}
+
+export interface PortfolioHintDTO {
+  assetClass: string;
+  currentRatio: string;
+  targetBand: { min: number; max: number };
+  direction: 'under' | 'over' | 'ok';
+  reason: string;
+}
+
+export interface PortfolioHintsDTO {
+  batchId: string;
+  targetBandsVersion: string;
+  totalMarketValue: string;
+  hints: PortfolioHintDTO[];
+  engineVersion: string;
+  disclaimers: string[];
+}
+
+export function toPortfolioHintDto(h: PortfolioHintItem): PortfolioHintDTO {
+  return {
+    assetClass: h.assetClass,
+    currentRatio: h.currentRatio,
+    targetBand: h.targetBand,
+    direction: h.direction,
+    reason: h.reason,
+  };
+}
+
+export function toPortfolioHintsDto(
+  batchId: string,
+  hints: PortfolioHintItem[],
+  totalMarketValue: string,
+  targetBandsVersion: string,
+  engineVer: string,
+  disclaimers: string[],
+): PortfolioHintsDTO {
+  return {
+    batchId,
+    targetBandsVersion,
+    totalMarketValue,
+    hints: hints.map(toPortfolioHintDto),
+    engineVersion: engineVer,
+    disclaimers,
   };
 }

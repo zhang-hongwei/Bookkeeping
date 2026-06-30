@@ -493,3 +493,187 @@ export const approvalDecisionSchema = z.object({
   decision: z.enum(['approve', 'reject']),
 });
 export type ApprovalDecisionBody = z.infer<typeof approvalDecisionSchema>;
+
+// ===== Phase 6 US3：多期趋势对比 请求 schema =====
+
+/**
+ * 趋势对比查询：?metric=savings_rate,debt_ratio,score&periods=12
+ * - metric：逗号分隔的指标列表（service 侧校验白名单）；缺省=全部指标。
+ * - periods：回看期数（1–24，service 侧再 clamp；默认 12）。
+ */
+export const trendQuerySchema = z.object({
+  metric: z.string().optional(),
+  periods: z.coerce.number().int().min(1).max(24).optional(),
+});
+export type TrendQuery = z.infer<typeof trendQuerySchema>;
+
+// ===== Phase 5：预算与目标 请求 schema =====
+
+/** 阈值字符串：0.00–1.00。 */
+const thresholdAmount = z
+  .string()
+  .refine((s) => Number.isFinite(Number(s)) && Number(s) >= 0 && Number(s) <= 1, {
+    message: '阈值应为 0–1',
+  });
+
+/** 日期字符串 YYYY-MM-DD。 */
+const isoDateStr = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '日期格式应为 YYYY-MM-DD');
+
+/** 创建预算：categoryId 可空（总支出预算）；amount>0；periodType 默认 month；阈值默认 0.80。 */
+export const createBudgetSchema = z.object({
+  categoryId: z.string().uuid().nullable().optional(),
+  name: z.string().max(100).nullable().optional(),
+  amount: positiveAmount,
+  periodType: z.enum(['month', 'week', 'year']).optional(),
+  alertThreshold: thresholdAmount.optional(),
+});
+export type CreateBudgetBody = z.infer<typeof createBudgetSchema>;
+
+/** 更新预算：categoryId 不可改（C6，故 omit）；其余可选。 */
+export const updateBudgetSchema = z.object({
+  name: z.string().max(100).nullable().optional(),
+  amount: positiveAmount.optional(),
+  periodType: z.enum(['month', 'week', 'year']).optional(),
+  alertThreshold: thresholdAmount.optional(),
+  active: z.boolean().optional(),
+});
+export type UpdateBudgetBody = z.infer<typeof updateBudgetSchema>;
+
+/** 预算列表查询：?active=&period=YYYY-MM-DD。 */
+export const budgetQuerySchema = z.object({
+  active: z.enum(['true', 'false']).optional(),
+  period: isoDateStr.optional(),
+});
+export type BudgetQuery = z.infer<typeof budgetQuerySchema>;
+
+/** 预算预警查询：?period=&status=warning|overrun。 */
+export const budgetAlertsQuerySchema = z.object({
+  period: isoDateStr.optional(),
+  status: z.enum(['warning', 'overrun']).optional(),
+});
+export type BudgetAlertsQuery = z.infer<typeof budgetAlertsQuerySchema>;
+
+/** 历史周期区间查询：?from=&to=（YYYY-MM-DD）。 */
+export const periodRangeSchema = z.object({
+  from: isoDateStr.optional(),
+  to: isoDateStr.optional(),
+});
+export type PeriodRangeQuery = z.infer<typeof periodRangeSchema>;
+
+/** 创建目标：targetAmount>0；linked 须 linkedAccountIds 非空。 */
+export const createGoalSchema = z
+  .object({
+    name: z.string().min(1).max(100),
+    targetAmount: positiveAmount,
+    targetDate: isoDateStr.nullable().optional(),
+    progressBasis: z.enum(['manual', 'linked', 'net_worth']).optional(),
+    linkedAccountIds: z.array(z.string().min(1)).optional(),
+    manualAmount: moneyString.optional(),
+    notes: z.string().max(500).nullable().optional(),
+  })
+  .superRefine((val, ctx) => {
+    if ((val.progressBasis ?? 'manual') === 'linked' &&
+      (!val.linkedAccountIds || val.linkedAccountIds.length === 0)) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'linked 口径需提供关联账户',
+        path: ['linkedAccountIds'],
+      });
+    }
+  });
+export type CreateGoalBody = z.infer<typeof createGoalSchema>;
+
+/** 更新目标：全部可选。 */
+export const updateGoalSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  targetAmount: positiveAmount.optional(),
+  targetDate: isoDateStr.nullable().optional(),
+  progressBasis: z.enum(['manual', 'linked', 'net_worth']).optional(),
+  linkedAccountIds: z.array(z.string().min(1)).optional(),
+  manualAmount: moneyString.optional(),
+  notes: z.string().max(500).nullable().optional(),
+  status: z.enum(['active', 'archived']).optional(),
+});
+export type UpdateGoalBody = z.infer<typeof updateGoalSchema>;
+
+/** 目标进度查询：?windowMonths=（默认 3）。 */
+export const progressQuerySchema = z.object({
+  windowMonths: z.coerce.number().int().min(1).max(12).optional(),
+});
+export type ProgressQuery = z.infer<typeof progressQuerySchema>;
+
+// ===== Phase 7：高级分析（what-if / 个税 / 退休 / 组合）请求 schema =====
+
+/** 家庭视角可选查询（?familyId=）。 */
+export const familyQuerySchema = z.object({
+  familyId: z.string().min(1).optional(),
+});
+export type FamilyQuery = z.infer<typeof familyQuerySchema>;
+
+/** US1：创建 what-if 情景（I1：durationMonths ∈ [1, horizonMonths]）。 */
+export const createScenarioSchema = z
+  .object({
+    name: z.string().min(1).max(120),
+    kind: z.enum([
+      'income_cut',
+      'rate_hike',
+      'lump_expense',
+      'unemployment',
+      'custom',
+    ]),
+    assumptions: z.object({
+      incomeDeltaPct: z.number(),
+      durationMonths: z.number().int().min(1),
+      rateDeltaPct: z.number().nullable().optional(),
+      lumpExpense: moneyString.nullable().optional(),
+      affectedMonth: z.number().int().min(0).nullable().optional(),
+    }),
+    horizonMonths: z.number().int().min(1).max(60),
+    familyId: z.string().min(1).optional(),
+  })
+  .refine((d) => d.assumptions.durationMonths <= d.horizonMonths, {
+    message: 'durationMonths 不得超过 horizonMonths（I1）',
+    path: ['assumptions', 'durationMonths'],
+  });
+export type CreateScenarioBody = z.infer<typeof createScenarioSchema>;
+
+/** US2：个税估算。 */
+export const taxEstimateSchema = z.object({
+  taxYear: z.number().int().min(2000).max(2100),
+  inputs: z.object({
+    annualIncome: moneyString,
+    insuranceAndFund: moneyString,
+    specialDeductions: z.record(z.string(), moneyString).default({}),
+    annualBonus: moneyString.nullable().optional(),
+  }),
+  familyId: z.string().min(1).optional(),
+});
+export type TaxEstimateBody = z.infer<typeof taxEstimateSchema>;
+
+/** US2：取最近估算查询（?taxYear=&familyId=）。 */
+export const taxYearQuerySchema = z.object({
+  taxYear: z.coerce.number().int().optional(),
+  familyId: z.string().min(1).optional(),
+});
+export type TaxYearQuery = z.infer<typeof taxYearQuerySchema>;
+
+/** US3：退休模拟。 */
+export const retirementSchema = z.object({
+  assumptions: z.object({
+    currentAge: z.number().int().min(0).max(120),
+    retirementAge: z.number().int().min(0).max(120),
+    monthlyContribution: moneyString,
+    realReturnRatePct: z.number(),
+    inflationPct: z.number(),
+    postRetirementMonthlySpend: moneyString,
+    withdrawalRatePct: z.number(),
+  }),
+  familyId: z.string().min(1).optional(),
+});
+export type RetirementBody = z.infer<typeof retirementSchema>;
+
+/** US3/US4 interpret 请求体：仅可选 familyId。 */
+export const familyBodySchema = z.object({
+  familyId: z.string().min(1).optional(),
+});
+export type FamilyBody = z.infer<typeof familyBodySchema>;

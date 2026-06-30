@@ -108,6 +108,45 @@ describe('generateAlertCandidates（纯函数，I1 锚点）', () => {
     });
     expect(again).toEqual(cands);
   });
+
+  it('趋势结论 trend_* → trend_deterioration 候选 + refs 取触发期次（I1，决策 10）', () => {
+    const cands = generateAlertCandidates({
+      findings: findings(),
+      period: '2026-06',
+      forecastShortfallMonth: null,
+      prevSavingsRate: null,
+      trendFindings: [
+        {
+          metric: 'trend_savings_decline',
+          value: null,
+          verdict: '储蓄率连续 3 期下降',
+          riskLevel: 'high',
+          periods: ['2026-04', '2026-05', '2026-06'],
+        },
+      ],
+    });
+    const trend = cands.find((c) => c.kind === 'trend_deterioration');
+    expect(trend).toBeDefined();
+    expect(trend!.severity).toBe('high');
+    expect(trend!.ruleFindingRefs.length).toBe(3); // I1：每个触发期次一个锚点
+    expect(trend!.ruleFindingRefs.map((r) => r.period)).toEqual([
+      '2026-04',
+      '2026-05',
+      '2026-06',
+    ]);
+    expect(trend!.ruleFindingRefs.every((r) => r.metric === 'trend_savings_decline')).toBe(true);
+  });
+
+  it('无趋势结论 → 不产 trend_deterioration 候选', () => {
+    const cands = generateAlertCandidates({
+      findings: findings(),
+      period: '2026-06',
+      forecastShortfallMonth: null,
+      prevSavingsRate: null,
+      trendFindings: [],
+    });
+    expect(cands.find((c) => c.kind === 'trend_deterioration')).toBeUndefined();
+  });
 });
 
 // ===== DB 集成（gated）：幂等物化 (I6) + 偏好静默 (FR-008) =====

@@ -60,7 +60,7 @@ Next.js 全栈单仓（App Router）。`src/database/schema/finance` → `src/re
 - [X] T007 [P] [US1] Create `src/database/schema/finance/cash-flow-forecasts.ts` (`finance_cash_flow_forecasts`: id, userId, targetMonth varchar(7), series jsonb, insufficientHistory bool, generatedAt, timestamps; unique `(userId,targetMonth)`) per data-model.md §2.1
 - [X] T008 [P] [US1] Create `src/database/schema/finance/smart-alerts.ts` (`finance_smart_alerts` + `finance_alert_preferences`: columns per data-model.md §2.2/§2.3; unique `(userId,kind,period)` on alerts, `(userId,kind)` on preferences)
 - [X] T009 [US1] Register new tables + relations in `src/database/schema/finance/index.ts` and `src/database/schema/finance/relations.ts` (depends T007, T008)
-- [ ] T010 [US1] Generate migration: `pnpm drizzle-kit generate` (T007/T008 tables + indexes) — ⚠️ BLOCKED: drizzle-kit interactive rename-conflict resolver requires a TTY unavailable in this sandbox; schema ready, run in a real terminal
+- [X] T010 [US1] Generate migration: hand-authored `src/database/migrations/0004_ai_wealth_advisor.sql` (cash_flow_forecasts + smart_alerts + alert_preferences tables, unique/index constraints) and registered in `meta/_journal.json` (idx 4). ✅ RESOLVED — `drizzle-kit generate` is non-runnable here due to repo snapshot drift (snapshots exist only for 0000/0001, so any generate diffs against a stale baseline and triggers the interactive rename-conflict resolver). Followed the established `0003_family_finance` precedent of hand-writing the SQL; faithful to the Drizzle schema (column order, `gen_random_uuid()`/`now()` defaults, jsonb `'[]'`/`'{}'`, btree indexes, FK naming).
 - [X] T011 [P] [US1] Implement `src/repositories/finance/forecast.repository.ts` (userId-scoped upsert/read by targetMonth, extends `FinanceRepository` base)
 - [X] T012 [P] [US1] Implement `src/repositories/finance/alert.repository.ts` (userId-scoped; idempotent upsert on `(userId,kind,period)`; preference upsert; list-by-status)
 - [X] T013 [US1] Implement `src/services/finance/forecast.service.ts`: pure function (linear trend + monthly seasonality + residual-based uncertainty, research.md 决策 2), `MIN_HISTORY_MONTHS`/`FORECAST_HORIZON_MONTHS`/`LOOKBACK_MONTHS` constants, emergency-shortfall detection, insufficient-history degradation (决策 3), cache via forecast.repository, inputs from `sumAmountByType`/`getPeriodMetrics` (depends T011)
@@ -84,30 +84,30 @@ Next.js 全栈单仓（App Router）。`src/database/schema/finance` → `src/re
 
 ### Tests for User Story 2
 
-- [ ] T022 [P] [US2] Write `tests/finance/approval.service.test.ts`: state machine (proposed→pending→approved→applied; rejected/expired terminal), apply idempotency (I8), `create_transaction` apply routes through `ledger.service` balance check (I2/不破坏 Phase 0 不变量), double rule-validation at apply (defensive)
-- [ ] T023 [P] [US2] Write `tests/finance/advisor.service.test.ts`: assistant numbers traceable via `citedFindings` (I1), LLM-failure degradation `degraded=true` + template (I7/SC-005), high-risk suggestion creates `proposed` approval (not auto-committed, FR-004)
+- [X] T022 [P] [US2] Write `tests/finance/approval.service.test.ts`: state machine (proposed→pending→approved→applied; rejected/expired terminal), apply idempotency (I8), `create_transaction` apply routes through `ledger.service` balance check (I2/不破坏 Phase 0 不变量), double rule-validation at apply (defensive)
+- [X] T023 [P] [US2] Write `tests/finance/advisor.service.test.ts`: assistant numbers traceable via `citedFindings` (I1), LLM-failure degradation `degraded=true` + template (I7/SC-005), high-risk suggestion creates `proposed` approval (not auto-committed, FR-004)
 
 > Write tests FIRST; ensure they FAIL before implementation.
 
 ### Implementation for User Story 2
 
-- [ ] T024 [P] [US2] Create `src/database/schema/finance/approvals.ts` (`finance_approvals`: id, userId, kind, payload jsonb, ruleValidation jsonb, status, proposedBy, approvedAt, appliedAt, appliedResult, expiresAt, timestamps; index `(userId,status)`) per data-model.md §2.6
-- [ ] T025 [P] [US2] Create `src/database/schema/finance/advisor.ts` (`finance_advisor_sessions` + `finance_advisor_messages`: columns per §2.4/§2.5; message `citedFindings`/`degraded`/`proposalId` FK→approvals set null)
-- [ ] T026 [US2] Register tables + relations in `src/database/schema/finance/index.ts` and `src/database/schema/finance/relations.ts` (session↔message↔approval) (depends T024, T025)
-- [ ] T027 [US2] Generate migration: `pnpm drizzle-kit generate` (T024/T025 tables + indexes)
-- [ ] T028 [P] [US2] Implement `src/repositories/finance/approval.repository.ts` (userId-scoped CRUD + status-transition guard + list-by-status)
-- [ ] T029 [P] [US2] Implement `src/repositories/finance/advisor.repository.ts` (userId-scoped session/message CRUD, message create with citedFindings/proposalId)
-- [ ] T030 [US2] Implement `src/services/finance/approval.service.ts`: state machine, `PROPOSAL_TTL` (default 7d) expiry→expired, kind whitelist + validators (`flag_transaction_anomaly`/`rebalance_suggestion`/`amend_finding_override`/`create_transaction`), double rule-validation (propose gate + apply defensive), idempotent apply routing `create_transaction` through `ledger.service` (决策 4/5/6, depends T028)
-- [ ] T031 [US2] Implement `src/services/finance/advisor.service.ts`: gather fact layer (`computeFindingsFromData` + health score + forecast + trends) → AI SDK expression layer (`generateText`/`streamText`, clone `report.service.ts` red-line system prompt: "数字必须引用给定结论，严禁计算/推测/捏造"), LLM-failure→degraded template, context trim via `chat-context-trimmer.ts`, high-risk suggestion→create `proposed` approval + return `proposalId` (决策 7/8, depends T029, T030)
-- [ ] T032 [US2] Add advisor/approval DTOs + Zod schemas to `src/app/api/finance/_lib/serialize.ts` and `src/app/api/finance/_lib/validation.ts` (depends T001, T002)
-- [ ] T033 [P] [US2] Implement `src/app/api/finance/advisor/sessions/route.ts` (`POST` create / `GET` list) (§3.1/§3.2)
-- [ ] T034 [US2] Implement `src/app/api/finance/advisor/sessions/[id]/messages/route.ts` (`GET` history / `POST` send → returns assistant message in `DisclaimerEnvelope`) (§3.3/§3.4)
-- [ ] T035 [P] [US2] Implement `src/app/api/finance/approvals/route.ts` (`GET ?status=` list) (§4.1)
-- [ ] T036 [US2] Implement `src/app/api/finance/approvals/[id]/route.ts` (`GET` detail / `PATCH approve|reject`) (§4.2/§4.3)
-- [ ] T037 [US2] Implement `src/app/api/finance/approvals/[id]/apply/route.ts` (`POST` idempotent apply, 200 current-state on repeat, 422 if not approved/expired/rule-revalidation-failed) (§4.4)
-- [ ] T038 [P] [US2] Add advisor/approval methods + DTOs to `src/features/finance/api.ts` and hooks to `src/features/finance/hooks/use-finance.ts` (invalidate approvals after approve/apply)
-- [ ] T039 [US2] Build `src/features/finance/components/AdvisorChat.tsx` (session list + message thread + citedFindings expansion + inline proposal→approval hand-off)
-- [ ] T040 [US2] Build `src/features/finance/components/ApprovalCenter.tsx` (pending list + approve/reject + apply + result + expiry display)
+- [X] T024 [P] [US2] Create `src/database/schema/finance/approvals.ts` (`finance_approvals`: id, userId, kind, payload jsonb, ruleValidation jsonb, status, proposedBy, approvedAt, appliedAt, appliedResult, expiresAt, timestamps; index `(userId,status)`) per data-model.md §2.6
+- [X] T025 [P] [US2] Create `src/database/schema/finance/advisor.ts` (`finance_advisor_sessions` + `finance_advisor_messages`: columns per §2.4/§2.5; message `citedFindings`/`degraded`/`proposalId` FK→approvals set null)
+- [X] T026 [US2] Register tables + relations in `src/database/schema/finance/index.ts` and `src/database/schema/finance/relations.ts` (session↔message↔approval) (depends T024, T025)
+- [X] T027 [US2] Generate migration: covered by the same `0004_ai_wealth_advisor.sql` (approvals + advisor_sessions + advisor_messages tables, indexes, FKs `advisor_messages→sessions`(cascade)/`→approvals`(set null)) registered alongside T010. ✅ RESOLVED — single combined Phase 6 migration (one `db:migrate` applies all six 007 tables), hand-authored per the 0003 precedent.
+- [X] T028 [P] [US2] Implement `src/repositories/finance/approval.repository.ts` (userId-scoped CRUD + status-transition guard + list-by-status)
+- [X] T029 [P] [US2] Implement `src/repositories/finance/advisor.repository.ts` (userId-scoped session/message CRUD, message create with citedFindings/proposalId)
+- [X] T030 [US2] Implement `src/services/finance/approval.service.ts`: state machine, `PROPOSAL_TTL` (default 7d) expiry→expired, kind whitelist + validators (`flag_transaction_anomaly`/`rebalance_suggestion`/`amend_finding_override`/`create_transaction`), double rule-validation (propose gate + apply defensive), idempotent apply routing `create_transaction` through `ledger.service` (决策 4/5/6, depends T028)
+- [X] T031 [US2] Implement `src/services/finance/advisor.service.ts`: gather fact layer (`computeFindingsFromData` + health score + forecast + trends) → AI SDK expression layer (`generateText`/`streamText`, clone `report.service.ts` red-line system prompt: "数字必须引用给定结论，严禁计算/推测/捏造"), LLM-failure→degraded template, context trim via `chat-context-trimmer.ts`, high-risk suggestion→create `proposed` approval + return `proposalId` (决策 7/8, depends T029, T030)
+- [X] T032 [US2] Add advisor/approval DTOs + Zod schemas to `src/app/api/finance/_lib/serialize.ts` and `src/app/api/finance/_lib/validation.ts` (depends T001, T002)
+- [X] T033 [P] [US2] Implement `src/app/api/finance/advisor/sessions/route.ts` (`POST` create / `GET` list) (§3.1/§3.2)
+- [X] T034 [US2] Implement `src/app/api/finance/advisor/sessions/[id]/messages/route.ts` (`GET` history / `POST` send → returns assistant message in `DisclaimerEnvelope`) (§3.3/§3.4)
+- [X] T035 [P] [US2] Implement `src/app/api/finance/approvals/route.ts` (`GET ?status=` list) (§4.1)
+- [X] T036 [US2] Implement `src/app/api/finance/approvals/[id]/route.ts` (`GET` detail / `PATCH approve|reject`) (§4.2/§4.3)
+- [X] T037 [US2] Implement `src/app/api/finance/approvals/[id]/apply/route.ts` (`POST` idempotent apply, 200 current-state on repeat, 422 if not approved/expired/rule-revalidation-failed) (§4.4)
+- [X] T038 [P] [US2] Add advisor/approval methods + DTOs to `src/features/finance/api.ts` and hooks to `src/features/finance/hooks/use-finance.ts` (invalidate approvals after approve/apply)
+- [X] T039 [US2] Build `src/features/finance/components/AdvisorChat.tsx` (session list + message thread + citedFindings expansion + inline proposal→approval hand-off)
+- [X] T040 [US2] Build `src/features/finance/components/ApprovalCenter.tsx` (pending list + approve/reject + apply + result + expiry display)
 
 **Checkpoint**: US1 + US2 both independently functional — advisor answers are grounded & traceable, high-risk actions require explicit approval + idempotent apply, degradation works.
 
@@ -121,20 +121,20 @@ Next.js 全栈单仓（App Router）。`src/database/schema/finance` → `src/re
 
 ### Tests for User Story 3
 
-- [ ] T041 [P] [US3] Write `tests/finance/trend.service.test.ts`: series matches each period's report findings (SC-004), direction/deteriorating flags correct, money as decimal (I4)
-- [ ] T042 [P] [US3] Extend `tests/finance/rules-engine.service.test.ts`: trend rules emit `metric='trend_*'` findings on consecutive decline (决策 10)
+- [X] T041 [P] [US3] Write `tests/finance/trend.service.test.ts`: series matches each period's report findings (SC-004), direction/deteriorating flags correct, money as decimal (I4)
+- [X] T042 [P] [US3] Extend `tests/finance/rules-engine.service.test.ts`: trend rules emit `metric='trend_*'` findings on consecutive decline (决策 10)
 
 > Write tests FIRST; ensure they FAIL before implementation.
 
 ### Implementation for User Story 3
 
-- [ ] T043 [US3] Add trend rules to `src/services/finance/rules-engine.service.ts`: pure functions over multi-period `FindingData` (savings/health consecutive `TREND_DECLINE_PERIODS` decline → `trend_*` finding; emergency cross-threshold) emitting existing `FindingData` shape (metric `trend_savings_decline`/`trend_health_decline`), reusable by trends + alerts (决策 10)
-- [ ] T044 [US3] Implement `src/services/finance/trend.service.ts`: aggregate `listReports` (score/period) + `finance_rule_findings` per metric → ordered series + direction (↑/↓/flat) + `deteriorating` flag (决策 13, reuses report/finding repositories read-only)
-- [ ] T045 [US3] Wire `trend_deterioration` alert kind into `src/services/finance/alert.service.ts` generation (reuse US1 infra, idempotent `(userId,kind,period)`) (depends T014)
-- [ ] T046 [US3] Add trend DTO + schema to `src/app/api/finance/_lib/serialize.ts` and `src/app/api/finance/_lib/validation.ts`
-- [ ] T047 [P] [US3] Implement `src/app/api/finance/trends/route.ts` (`GET ?metric=&periods=` in `DisclaimerEnvelope`) (§6.1)
-- [ ] T048 [P] [US3] Add trend methods + DTOs to `src/features/finance/api.ts` and hooks to `src/features/finance/hooks/use-finance.ts`
-- [ ] T049 [US3] Build `src/features/finance/components/TrendComparison.tsx` (multi-metric time series + direction + deterioration highlight + sourceRefs)
+- [X] T043 [US3] Add trend rules to `src/services/finance/rules-engine.service.ts`: pure functions over multi-period `FindingData` (savings/health consecutive `TREND_DECLINE_PERIODS` decline → `trend_*` finding; emergency cross-threshold) emitting existing `FindingData` shape (metric `trend_savings_decline`/`trend_health_decline`), reusable by trends + alerts (决策 10)
+- [X] T044 [US3] Implement `src/services/finance/trend.service.ts`: aggregate `listReports` (score/period) + `finance_rule_findings` per metric → ordered series + direction (↑/↓/flat) + `deteriorating` flag (决策 13, reuses report/finding repositories read-only)
+- [X] T045 [US3] Wire `trend_deterioration` alert kind into `src/services/finance/alert.service.ts` generation (reuse US1 infra, idempotent `(userId,kind,period)`) (depends T014)
+- [X] T046 [US3] Add trend DTO + schema to `src/app/api/finance/_lib/serialize.ts` and `src/app/api/finance/_lib/validation.ts`
+- [X] T047 [P] [US3] Implement `src/app/api/finance/trends/route.ts` (`GET ?metric=&periods=` in `DisclaimerEnvelope`) (§6.1)
+- [X] T048 [P] [US3] Add trend methods + DTOs to `src/features/finance/api.ts` and hooks to `src/features/finance/hooks/use-finance.ts`
+- [X] T049 [US3] Build `src/features/finance/components/TrendComparison.tsx` (multi-metric time series + direction + deterioration highlight + sourceRefs)
 
 **Checkpoint**: All three stories independently functional; trends align with report conclusions, deterioration surfaces trend alerts.
 
@@ -144,13 +144,13 @@ Next.js 全栈单仓（App Router）。`src/database/schema/finance` → `src/re
 
 **Purpose**: Cross-cutting FR enforcement + quality gates spanning multiple stories.
 
-- [ ] T050 [P] Resolve `anomaly_flag` landing column for `flag_transaction_anomaly`: in `src/database/schema/finance/transactions.ts`, prefer reusing any existing remark/flag column; if none, add minimal `anomalyFlag varchar(20)` (nullable, backward-compatible) + migration (research.md §3.2)
-- [ ] T051 [P] Audit FR-009 compliance: verify every forecast/alert/advisor/trend/health-score response appends `disclaimer` + `sourceRefs` (grep routes + serialize)
-- [ ] T052 [P] Audit FR-007 traceability: verify no LLM-fabricated numbers stored as authoritative — all numeric conclusions route through `SourceRef`-backed paths
-- [ ] T053 [P] Audit FR-010 isolation: confirm all new repositories/routes enforce `userId` scoping; cross-user resource access → 404 (not 403 leak)
-- [ ] T054 Update `src/features/finance/README.md` with Phase 6 capabilities (forecast/alerts/advisor/approvals/trends) and the zero-hallucination/approval red lines
-- [ ] T055 Run quality gates: `pnpm type-check` (only 007 files must be clean — baseline ~340 legacy errors are pre-existing) and `pnpm test --run --silent='passed-only' 'tests/finance/(forecast|alert|approval|advisor|trend)'`
-- [ ] T056 Run `specs/007-ai-wealth-advisor/quickstart.md` §6 end-to-end smoke (SC-001..SC-005)
+- [X] T050 [P] Resolve `anomaly_flag` landing column for `flag_transaction_anomaly`: added minimal nullable `anomalyFlag varchar(16)` to `transactions.ts` (backward-compatible) + `ANOMALY_FLAGS` enum. ✅ Migration now included in `0004_ai_wealth_advisor.sql` (`ALTER TABLE "finance_transactions" ADD COLUMN "anomaly_flag" varchar(16);`).
+- [X] T051 [P] Audit FR-009 compliance: every forecast/alert(advisor list/messages)/trend/health-score response wraps `DisclaimerEnvelope` (disclaimer + sourceRefs). Fixed gap: `health-score` route + `HealthScorePanel` now envelope-wrapped. Operational responses (single-alert PATCH, preferences, sessions meta, approvals) return bare DTOs per contract (no numeric-conclusion payload).
+- [X] T052 [P] Audit FR-007 traceability: all numeric conclusions route through rules-engine (pure fn) → `citedFindings`/`ruleFindingRefs`/`ruleValidation.refs`/forecast `history`/trend pass-through. LLM only produces `content` text (advisor/report); degraded templates take numbers from findings. No LLM-fabricated number stored as authoritative.
+- [X] T053 [P] Audit FR-010 isolation: all new repositories extend `FinanceRepository` (userId-scoped); advisor/approval/alerts routes return 404 on cross-user/not-found — no 403 existence leak.
+- [X] T054 Update `src/features/finance/README.md` with Phase 6 capabilities (forecast/alerts/advisor/approvals/trends) and the zero-hallucination/approval red lines
+- [X] T055 Run quality gates: `pnpm type-check` clean for all 007 files (baseline legacy errors untouched); finance tests green — forecast 12 / alert 8+1 / approval 8+1 / advisor 8+1 / trend 13 / rules-engine 24.
+- [ ] T056 Run `specs/007-ai-wealth-advisor/quickstart.md` §6 end-to-end smoke (SC-001..SC-005) — ⚠️ MANUAL: requires running PostgreSQL (apply `0004_ai_wealth_advisor.sql` via `pnpm db:migrate`) + Supabase auth session + seeded multi-period data; cannot run in this sandbox. Migrations are now authored & registered (T010/T027 done); run this smoke + `db:migrate` in a real terminal.
 
 ---
 

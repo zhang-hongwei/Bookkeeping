@@ -18,6 +18,7 @@ import {
 } from './rules-engine.service';
 import { reportRepository } from '@/repositories/finance/report.repository';
 import { findingRepository } from '@/repositories/finance/finding.repository';
+import { collectBudgetGoalFacts, budgetGoalFactsText } from './budget-goal-facts';
 import type { PeriodMetrics } from './rules-engine.service';
 
 export function computeSourceDataHash(m: PeriodMetrics): string {
@@ -55,6 +56,7 @@ export function degradedTemplate(findings: FindingData[]): string {
 async function generateReportContent(
   findings: FindingData[],
   score: string,
+  budgetGoalText: string,
 ): Promise<{ content: string; ok: boolean }> {
   const baseURL = process.env.OPENAI_BASE_URL;
   const apiKey = process.env.OPENAI_AUTH_TOKEN;
@@ -70,9 +72,9 @@ async function generateReportContent(
     const { text } = await generateText({
       model: openai(modelName),
       system:
-        '你是财务顾问，为用户生成本月财务解读与建议。硬性规则：所有具体数字必须直接引用下面给定的结论，' +
-        '严禁自行计算、推测或捏造任何数字；结论中未出现的数字一律不得写入。',
-      prompt: `健康分：${score}/100\n\n确定性结论：\n${findingsText}\n\n请生成月报正文（markdown，300 字内）。`,
+        '你是财务顾问，为用户生成本月财务解读与建议。硬性规则：所有具体数字（含预算超支额、目标进度与预计达成时间）' +
+        '必须直接引用下面给定的结论，严禁自行计算、推测或捏造任何数字；结论中未出现的数字一律不得写入。',
+      prompt: `健康分：${score}/100\n\n确定性结论：\n${findingsText}\n\n${budgetGoalText}\n\n请生成月报正文（markdown，300 字内）。`,
     });
     return { content: text, ok: true };
   } catch (err) {
@@ -98,7 +100,14 @@ export async function generateMonthly(
   const findings = computeFindingsFromData(metrics);
   const health = computeHealthScore(findings);
   const sourceDataHash = computeSourceDataHash(metrics);
-  const { content, ok } = await generateReportContent(findings, health.total);
+  // Phase 5 US3：预算/目标确定性事实（best-effort，失败不阻塞报告生成）
+  let budgetGoalText = '';
+  try {
+    budgetGoalText = budgetGoalFactsText(await collectBudgetGoalFacts(userId));
+  } catch (err) {
+    console.error('[report] collect budget/goal facts failed:', err);
+  }
+  const { content, ok } = await generateReportContent(findings, health.total, budgetGoalText);
 
   const report = await reportRepository(userId).create({
     periodStart: period.start,

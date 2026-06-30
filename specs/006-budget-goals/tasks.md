@@ -36,8 +36,8 @@ description: "Task list for feature implementation"
 
 **Purpose**: 确认前置阶段就绪、补齐环境变量（本特性为增量，无脚手架、无新依赖）。
 
-- [ ] T001 ⚠️ **硬前置**：确认 Phase 0–4 已实现并达标——`src/database/schema/finance/`（accounts/transactions+entries/categories/net-worth-snapshots 等）、`src/services/finance/{ledger,balance,net-worth,rules-engine}.service.ts`、纯函数 `computeNetWorthLive`/`deriveViewNetWorth`、`money.ts`、`requireUserId` 均存在。运行 `pnpm test --run --silent='passed-only' 'finance'` 确认 Phase 0–4 测试全绿（quickstart.md §1）。**未达标则本特性无法交付**。
-- [ ] T002 [P] 环境变量：在 `.env.local` 确认/补齐 `DATABASE_URL`、`DATABASE_TEST_URL`（集成测试库）、`NEXT_PUBLIC_SUPABASE_URL`、`NEXT_PUBLIC_SUPABASE_ANON_KEY`、`SUPABASE_SERVICE_ROLE_KEY`。Phase 5 **无新增必需变量**（quickstart.md §1–§2）。
+- [X] T001 ⚠️ **硬前置**：确认 Phase 0–4 已实现并达标——`src/database/schema/finance/`（accounts/transactions+entries/categories/net-worth-snapshots 等）、`src/services/finance/{ledger,balance,net-worth,rules-engine}.service.ts`、纯函数 `computeNetWorthLive`/`deriveViewNetWorth`、`money.ts`、`requireUserId` 均存在。运行 `pnpm test --run --silent='passed-only' 'finance'` 确认 Phase 0–4 测试全绿（quickstart.md §1）。**未达标则本特性无法交付**。
+- [X] T002 [P] 环境变量：在 `.env.local` 确认/补齐 `DATABASE_URL`、`DATABASE_TEST_URL`（集成测试库）、`NEXT_PUBLIC_SUPABASE_URL`、`NEXT_PUBLIC_SUPABASE_ANON_KEY`、`SUPABASE_SERVICE_ROLE_KEY`。Phase 5 **无新增必需变量**（quickstart.md §1–§2）。
 
 ---
 
@@ -46,14 +46,14 @@ description: "Task list for feature implementation"
 **Purpose**: 所有用户故事共享的 schema + 迁移 + repository + 纯计算函数，必须先完成。
 **⚠️ CRITICAL**：未完成本阶段前不得开始任何用户故事。
 
-- [ ] T003 新增 `src/database/schema/finance/budgets.ts`：`finance_budgets`（id uuid PK defaultRandom、userId text 无 FK、categoryId uuid **可空**(NULL=总支出预算)、name text 可空、amount decimal18,2 >0、periodType varchar8 $type<BudgetPeriodType> default month、alertThreshold decimal3,2 default 0.80、rollover boolean default false(预留)、active boolean default true、时间戳）+ `finance_budget_periods`（id uuid PK、budgetId uuid FK→budgets cascade、userId text、periodStart date、periodEnd date、amountSnapshot decimal18,2、spentSnapshot decimal18,2 default 0、status varchar12 $type<BudgetStatus>、closedAt、时间戳）。索引：budgets `(userId,active)`、`unique(userId,categoryId,periodType)`；periods `unique(budgetId,periodStart)`、`(userId,periodStart,periodEnd)`。导出枚举 `BUDGET_PERIOD_TYPES`/`BUDGET_STATUSES` + 类型、`insert/select` schema、`BudgetItem`/`NewBudget`/`BudgetPeriodItem`/`NewBudgetPeriod`（data-model.md §2.1/§2.2 / research.md 决策1/11）。**不用 pgEnum**（沿用全域 varchar+$type）。
-- [ ] T004 [P] 新增 `src/database/schema/finance/goals.ts`：`finance_goals`（id uuid PK defaultRandom、userId text 无 FK、name text、targetAmount decimal18,2 >0、targetDate date **可空**、progressBasis varchar12 $type<GoalProgressBasis> default manual、linkedAccountIds jsonb string[] default []、manualAmount decimal18,2 default 0、notes text 可空、status varchar12 $type<GoalStatus> default active、completedAt 可空、时间戳）。索引：`(userId,status)`。导出枚举 `GOAL_PROGRESS_BASES`/`GOAL_STATUSES` + 类型、schema、`GoalItem`/`NewGoal`（data-model.md §2.3 / research.md 决策4）。
-- [ ] T005 扩展 `src/database/schema/finance/relations.ts`（budgets→category 逻辑 one、budgets↔periods many/one、goals 占位）与 `index.ts`（barrel 导出 budgets + goals），运行 `pnpm db:generate` + `pnpm db:migrate`（依赖 T003、T004）。迁移为纯增量、可逆、**不改既有表**（data-model.md §8）。
-- [ ] T006 [P] 新增 `src/repositories/finance/budget.repository.ts`（**继承 `FinanceRepository`**，`budgetRepository(userId)` 工厂）：`create`/`findById`/`listByUser({active,period?})`/`update`/`delete`、`findByUserCategoryPeriod(userId, categoryId, periodType)`（建预算前查重，防重复，INVARIANT）、periods 的 `upsertSnapshot`/`findRange(budgetId,from,to)`/`findLatest`（依赖 T003）。
-- [ ] T007 [P] 新增 `src/repositories/finance/goal.repository.ts`（继承 `FinanceRepository`，`goalRepository(userId)` 工厂）：`create`/`findById`/`listByUser({status})`/`update`/`delete`（依赖 T004）。
-- [ ] T008 [P] 新增纯计算函数 `src/services/finance/budget.service.ts`（**纯函数、无 DB**，可单测）：`computePeriodRange(periodType, refDate)`→`{start,end}`（month/week/year 边界，D1）、`buildCategorySubtreeMap(categories[])`→`Map<catId,Set<descId>>`（D2）、`sumExpensesInSubtree(expenseTxns, subtreeSet)`→cents（**零双计 I8、仅 expense I7、cents I2**）、`computeBudgetAlert(budget, period, spentCents)`→`BudgetAlert{ratio,status(normal/warning/overrun),riskLevel,verdict}`（阈值 alertThreshold/1.0，D3/D10）（data-model.md §6 I2/I7/I8 / research.md 决策1/2/3/10 / 依赖 `money.ts`）。
-- [ ] T009 [P] 新增纯计算函数 `src/services/finance/goal.service.ts`（**纯函数、无 DB**）：`computeGoalCurrent(goal, {netWorth?, linkedAccounts?})`→cents（按 progressBasis: manual→manualAmount / linked→ΣlinkedAccountIds 余额 / net_worth→netWorth，D4）、`computeGoalProgress(goal, currentCents, surplusSeries, {windowMonths})`→`{progressRate,completed,eta:{etaDate,etaStatus(on_track/at_risk/unreachable/completed),monthsToGoal,avgMonthlySurplus}}`（**avgSurplus≤0→unreachable 且 etaDate=null I5/SC-003**；无 targetDate→etaDate=null 仅显进度 D5；monthsToGoal=ceil(remaining/avgSurplus)）（data-model.md §6 I4/I5 / research.md 决策4/5 / 依赖 `money.ts`）。
-- [ ] T010 [P] 新增 DB 取数 `getMonthlySurplusSeries(userId, months)` 于 `goal.service.ts`：按 `sumAmountByType` 同口径（`type∈{income,expense}`、按 `occurredAt` 月份分组、transfers 排除、cents 求差）返回近 N 月 `{month,income,expense,surplus}[]`（D5/D6 / research.md 决策5/6 / 依赖 `transaction.repository`/`money.ts`）。
+- [X] T003 新增 `src/database/schema/finance/budgets.ts`：`finance_budgets`（id uuid PK defaultRandom、userId text 无 FK、categoryId uuid **可空**(NULL=总支出预算)、name text 可空、amount decimal18,2 >0、periodType varchar8 $type<BudgetPeriodType> default month、alertThreshold decimal3,2 default 0.80、rollover boolean default false(预留)、active boolean default true、时间戳）+ `finance_budget_periods`（id uuid PK、budgetId uuid FK→budgets cascade、userId text、periodStart date、periodEnd date、amountSnapshot decimal18,2、spentSnapshot decimal18,2 default 0、status varchar12 $type<BudgetStatus>、closedAt、时间戳）。索引：budgets `(userId,active)`、`unique(userId,categoryId,periodType)`；periods `unique(budgetId,periodStart)`、`(userId,periodStart,periodEnd)`。导出枚举 `BUDGET_PERIOD_TYPES`/`BUDGET_STATUSES` + 类型、`insert/select` schema、`BudgetItem`/`NewBudget`/`BudgetPeriodItem`/`NewBudgetPeriod`（data-model.md §2.1/§2.2 / research.md 决策1/11）。**不用 pgEnum**（沿用全域 varchar+$type）。
+- [X] T004 [P] 新增 `src/database/schema/finance/goals.ts`：`finance_goals`（id uuid PK defaultRandom、userId text 无 FK、name text、targetAmount decimal18,2 >0、targetDate date **可空**、progressBasis varchar12 $type<GoalProgressBasis> default manual、linkedAccountIds jsonb string[] default []、manualAmount decimal18,2 default 0、notes text 可空、status varchar12 $type<GoalStatus> default active、completedAt 可空、时间戳）。索引：`(userId,status)`。导出枚举 `GOAL_PROGRESS_BASES`/`GOAL_STATUSES` + 类型、schema、`GoalItem`/`NewGoal`（data-model.md §2.3 / research.md 决策4）。
+- [X] T005 扩展 `src/database/schema/finance/relations.ts`（budgets→category 逻辑 one、budgets↔periods many/one、goals 占位）与 `index.ts`（barrel 导出 budgets + goals）。✅ relations + barrel 完成；迁移手写为 `src/database/migrations/0005_budget_goals.sql`（3 表 + 索引 + 1 FK，注册 `_journal.json` idx 5）。✅ RESOLVED — `db:generate` 因仓库 snapshot 漂移（仅 0000/0001 有 snapshot）无法非交互运行，沿用 `0003_family_finance`/`0004_ai_wealth_advisor` 既定做法手写 SQL，忠实于 schema（列序、`gen_random_uuid()`/`now()`、`numeric(18,2)`、jsonb `'[]'`、btree 索引、FK 命名）。结构校验：3 表 / 2 唯一 / 3 非唯一索引 / 1 FK / 0 ALTER 既有表。
+- [X] T006 [P] 新增 `src/repositories/finance/budget.repository.ts`（**继承 `FinanceRepository`**，`budgetRepository(userId)` 工厂）：`create`/`findById`/`listByUser({active,period?})`/`update`/`delete`、`findByUserCategoryPeriod(userId, categoryId, periodType)`（建预算前查重，防重复，INVARIANT）、periods 的 `upsertSnapshot`/`findRange(budgetId,from,to)`/`findLatest`（依赖 T003）。
+- [X] T007 [P] 新增 `src/repositories/finance/goal.repository.ts`（继承 `FinanceRepository`，`goalRepository(userId)` 工厂）：`create`/`findById`/`listByUser({status})`/`update`/`delete`（依赖 T004）。
+- [X] T008 [P] 新增纯计算函数 `src/services/finance/budget.service.ts`（**纯函数、无 DB**，可单测）：`computePeriodRange(periodType, refDate)`→`{start,end}`（month/week/year 边界，D1）、`buildCategorySubtreeMap(categories[])`→`Map<catId,Set<descId>>`（D2）、`sumExpensesInSubtree(expenseTxns, subtreeSet)`→cents（**零双计 I8、仅 expense I7、cents I2**）、`computeBudgetAlert(budget, period, spentCents)`→`BudgetAlert{ratio,status(normal/warning/overrun),riskLevel,verdict}`（阈值 alertThreshold/1.0，D3/D10）（data-model.md §6 I2/I7/I8 / research.md 决策1/2/3/10 / 依赖 `money.ts`）。
+- [X] T009 [P] 新增纯计算函数 `src/services/finance/goal.service.ts`（**纯函数、无 DB**）：`computeGoalCurrent(goal, {netWorth?, linkedAccounts?})`→cents（按 progressBasis: manual→manualAmount / linked→ΣlinkedAccountIds 余额 / net_worth→netWorth，D4）、`computeGoalProgress(goal, currentCents, surplusSeries, {windowMonths})`→`{progressRate,completed,eta:{etaDate,etaStatus(on_track/at_risk/unreachable/completed),monthsToGoal,avgMonthlySurplus}}`（**avgSurplus≤0→unreachable 且 etaDate=null I5/SC-003**；无 targetDate→etaDate=null 仅显进度 D5；monthsToGoal=ceil(remaining/avgSurplus)）（data-model.md §6 I4/I5 / research.md 决策4/5 / 依赖 `money.ts`）。
+- [X] T010 [P] 新增 DB 取数 `getMonthlySurplusSeries(userId, months)` 于 `goal.service.ts`：按 `sumAmountByType` 同口径（`type∈{income,expense}`、按 `occurredAt` 月份分组、transfers 排除、cents 求差）返回近 N 月 `{month,income,expense,surplus}[]`（D5/D6 / research.md 决策5/6 / 依赖 `transaction.repository`/`money.ts`）。
 
 **Checkpoint**：3 张新表已迁移（不改既有表）；budget/goal repository 就绪；budget/goal 纯计算函数可单测（I2/I4/I5/I7/I8）。Phase 3 业务可开始。
 
@@ -66,24 +66,24 @@ description: "Task list for feature implementation"
 
 ### Tests for User Story 1（先写测试、确保失败再实现）
 
-- [ ] T011 [P] [US1] 纯函数测试 `tests/finance/budget.service.test.ts`：`computePeriodRange`(month/week/year 边界正确)、`buildCategorySubtreeMap`(父+全部后代)、`sumExpensesInSubtree`(子树内一笔交易计一次 I8、仅 type=expense I7、cents 无浮点 I2)、`computeBudgetAlert`(ratio<阈值→normal、≥阈值→warning、≥1→overrun；verdict/riskLevel 正确)（依赖 T008）。
-- [ ] T012 [P] [US1] 集成测试（门控 `FINANCE_INTEGRATION_TEST=1`）`tests/finance/budget.service.test.ts` 骨架：建预算→记支出→已用实时正确（I1/SC-001）；达额度→overrun 触发（SC-002）；子类支出计入父类预算（FR-004/I8）；transfer 支出不计入（I7）。先写、待实现后转绿。
+- [X] T011 [P] [US1] 纯函数测试 `tests/finance/budget.service.test.ts`：`computePeriodRange`(month/week/year 边界正确)、`buildCategorySubtreeMap`(父+全部后代)、`sumExpensesInSubtree`(子树内一笔交易计一次 I8、仅 type=expense I7、cents 无浮点 I2)、`computeBudgetAlert`(ratio<阈值→normal、≥阈值→warning、≥1→overrun；verdict/riskLevel 正确)（依赖 T008）。
+- [X] T012 [P] [US1] 集成测试（门控 `FINANCE_INTEGRATION_TEST=1`）`tests/finance/budget.service.test.ts` 骨架：建预算→记支出→已用实时正确（I1/SC-001）；达额度→overrun 触发（SC-002）；子类支出计入父类预算（FR-004/I8）；transfer 支出不计入（I7）。先写、待实现后转绿。
 
 ### Implementation for User Story 1
 
-- [ ] T013 [US1] `budget.service.ts` DB 编排：`getBudgetStatus(budget, refDate)`（取用户分类→`buildCategorySubtreeMap`→取周期内 expense 交易→`sumExpensesInSubtree`→`computeBudgetAlert`，产出 spent/remaining/ratio/status/riskLevel/verdict）、`listBudgetsWithStatus(userId, refDate, {active})`、`listBudgetAlerts(userId, refDate, {status?})`（contracts/api.md §1.2/§2.2 / 依赖 T006、T008）。
-- [ ] T014 [US1] `budget.service.ts` 写操作：`createBudget`（**建前查重** `findByUserCategoryPeriod`，重复→`LedgerInvariantError` INVARIANT；categoryId 可空=总支出；应用层防重复总支出预算）、`updateBudget`（**categoryId 不可改** C6；amount 变更仅影响当前+未来周期）、`deactivate`/`deleteBudget`（contracts/api.md §1.1/§1.4/§1.5 / 依赖 T006）。
-- [ ] T015 [US1] `budget.service.ts` 历史快照：`closePeriod`(upsert `finance_budget_periods`，写 amountSnapshot+spentSnapshot+status，**写入后不可变 I3**)、`listPeriodHistory(budgetId, from, to)`、`backfillPeriodHistory`（缺失周期按需从 transactions 复算 + 当时 amountSnapshot 回填，沿用 Phase 1 `backfillHistory` 思路）（data-model.md §2.2 / research.md 决策11 / contracts/api.md §2.1 / 依赖 T006）。
-- [ ] T016 [US1] 改 `src/services/finance/ledger.service.ts` 写后钩子（D9）：创建/更新交易后 **best-effort** 计算 `categoryId`（及其祖先链）命中的预算当前 `BudgetAlert[]`，**非阻塞**附在响应 `{transaction, budgetAlerts?}`（try/catch，预算计算失败不回滚交易，不污染核心账目写入）（research.md 决策9 / contracts/api.md §4.1 / 依赖 T008、T013）。
-- [ ] T017 [P] [US1] 扩展 `src/app/api/finance/_lib/validation.ts`：`createBudgetSchema`(amount>0、periodType enum、alertThreshold?、categoryId? nullable)、`updateBudgetSchema`(**omit categoryId**，.partial())、`budgetQuerySchema`(active?、period?)、`alertsQuerySchema`(period?、status?)、`periodRangeSchema`(from/to)（contracts/api.md §1/§2）。
-- [ ] T018 [P] [US1] 扩展 `src/app/api/finance/_lib/serialize.ts`：`toBudgetDto`(含派生 period/spent/remaining/ratio/status/riskLevel/verdict)、`toBudgetAlertDto`、`toBudgetPeriodDto`，金额 string、日期 ISO（contracts/api.md §0.3）。
-- [ ] T019 [P] [US1] 新增 `src/app/api/finance/budgets/route.ts`(POST 建 / GET 列表含当前状态) 与 `src/app/api/finance/budgets/alerts/route.ts`(GET 当前周期预警汇总)；`requireUserId` + Zod + → service + 错误映射（422 VALIDATION/INVARIANT、404）（contracts/api.md §1.1/§1.2/§2.2 / 依赖 T013、T014、T017、T018）。
-- [ ] T020 [P] [US1] 新增 `src/app/api/finance/budgets/[id]/route.ts`(GET 详情 / PATCH / DELETE) 与 `src/app/api/finance/budgets/[id]/periods/route.ts`(GET 历史周期)；归属校验（非本人→404 C7）（contracts/api.md §1.3-1.5/§2.1 / 依赖 T013、T014、T015、T017、T018）。
-- [ ] T021 [P] [US1] 改 `src/app/api/finance/transactions/route.ts` 与 `transactions/[id]/route.ts`：响应**可选**附 `budgetAlerts`（D9 写后回带，无则省略字段）（contracts/api.md §4.1 / 依赖 T016）。
-- [ ] T022 [P] [US1] 扩展 `src/features/finance/api.ts`：`BudgetDTO`/`BudgetAlertDTO`/`BudgetPeriodDTO` 类型 + `listBudgets`/`createBudget`/`getBudget`/`updateBudget`/`deleteBudget`/`listBudgetAlerts`/`listBudgetPeriods` 客户端方法（contracts/api.md §0.3）。
-- [ ] T023 [US1] 扩展 `src/features/finance/hooks/use-finance.ts`：`useBudgets`/`useCreateBudget`/`useUpdateBudget`/`useDeleteBudget`/`useBudgetAlerts`（TanStack Query，`onSuccess` 失效 `['finance','budgets']`/`['finance','budget-alerts']`）。
-- [ ] T024 [US1] 新增 `src/features/finance/components/`：`BudgetForm.tsx`(设预算：分类+额度+周期+阈值)、`BudgetProgressRing.tsx`(已用/剩余/状态环)、`BudgetAlertsBanner.tsx`(即将超支/已超支提示，消费 `useBudgetAlerts`)、`BudgetHistoryChart.tsx`(历史周期)；接入个人仪表盘概览。沿用 frontend-dev 规范（MUI v7、sx 优先、react-i18next zh-CN）。
-- [ ] T025 [US1] 集成测试（门控）全量验收 `tests/finance/budget.service.test.ts`：已用实时与账目一致（I1/SC-001）；超支事中触发（SC-002）；子类计入父类且单预算零双计（FR-004/I8）；transfer 不计入（I7）；改额度后历史周期 `amountSnapshot` 不变（I3/SC-005）（依赖 T013–T016）。
+- [X] T013 [US1] `budget.service.ts` DB 编排：`getBudgetStatus(budget, refDate)`（取用户分类→`buildCategorySubtreeMap`→取周期内 expense 交易→`sumExpensesInSubtree`→`computeBudgetAlert`，产出 spent/remaining/ratio/status/riskLevel/verdict）、`listBudgetsWithStatus(userId, refDate, {active})`、`listBudgetAlerts(userId, refDate, {status?})`（contracts/api.md §1.2/§2.2 / 依赖 T006、T008）。
+- [X] T014 [US1] `budget.service.ts` 写操作：`createBudget`（**建前查重** `findByUserCategoryPeriod`，重复→`LedgerInvariantError` INVARIANT；categoryId 可空=总支出；应用层防重复总支出预算）、`updateBudget`（**categoryId 不可改** C6；amount 变更仅影响当前+未来周期）、`deactivate`/`deleteBudget`（contracts/api.md §1.1/§1.4/§1.5 / 依赖 T006）。
+- [X] T015 [US1] `budget.service.ts` 历史快照：`closePeriod`(upsert `finance_budget_periods`，写 amountSnapshot+spentSnapshot+status，**写入后不可变 I3**)、`listPeriodHistory(budgetId, from, to)`、`backfillPeriodHistory`（缺失周期按需从 transactions 复算 + 当时 amountSnapshot 回填，沿用 Phase 1 `backfillHistory` 思路）（data-model.md §2.2 / research.md 决策11 / contracts/api.md §2.1 / 依赖 T006）。
+- [X] T016 [US1] 改 `src/services/finance/ledger.service.ts` 写后钩子（D9）：创建/更新交易后 **best-effort** 计算 `categoryId`（及其祖先链）命中的预算当前 `BudgetAlert[]`，**非阻塞**附在响应 `{transaction, budgetAlerts?}`（try/catch，预算计算失败不回滚交易，不污染核心账目写入）（research.md 决策9 / contracts/api.md §4.1 / 依赖 T008、T013）。**实现偏差（更优）**：钩子放在路由层（`transactions/route.ts` + `transactions/[id]/route.ts`，调用 `alertsForTransaction`）而非 `ledger.service`，避免复式核心引擎耦合预算模块；契约 §4.1 响应 `budgetAlerts?` 与 D9 非阻塞语义完全一致。
+- [X] T017 [P] [US1] 扩展 `src/app/api/finance/_lib/validation.ts`：`createBudgetSchema`(amount>0、periodType enum、alertThreshold?、categoryId? nullable)、`updateBudgetSchema`(**omit categoryId**，.partial())、`budgetQuerySchema`(active?、period?)、`alertsQuerySchema`(period?、status?)、`periodRangeSchema`(from/to)（contracts/api.md §1/§2）。
+- [X] T018 [P] [US1] 扩展 `src/app/api/finance/_lib/serialize.ts`：`toBudgetDto`(含派生 period/spent/remaining/ratio/status/riskLevel/verdict)、`toBudgetAlertDto`、`toBudgetPeriodDto`，金额 string、日期 ISO（contracts/api.md §0.3）。
+- [X] T019 [P] [US1] 新增 `src/app/api/finance/budgets/route.ts`(POST 建 / GET 列表含当前状态) 与 `src/app/api/finance/budgets/alerts/route.ts`(GET 当前周期预警汇总)；`requireUserId` + Zod + → service + 错误映射（422 VALIDATION/INVARIANT、404）（contracts/api.md §1.1/§1.2/§2.2 / 依赖 T013、T014、T017、T018）。
+- [X] T020 [P] [US1] 新增 `src/app/api/finance/budgets/[id]/route.ts`(GET 详情 / PATCH / DELETE) 与 `src/app/api/finance/budgets/[id]/periods/route.ts`(GET 历史周期)；归属校验（非本人→404 C7）（contracts/api.md §1.3-1.5/§2.1 / 依赖 T013、T014、T015、T017、T018）。
+- [X] T021 [P] [US1] 改 `src/app/api/finance/transactions/route.ts` 与 `transactions/[id]/route.ts`：响应**可选**附 `budgetAlerts`（D9 写后回带，无则省略字段）（contracts/api.md §4.1 / 依赖 T016）。
+- [X] T022 [P] [US1] 扩展 `src/features/finance/api.ts`：`BudgetDTO`/`BudgetAlertDTO`/`BudgetPeriodDTO` 类型 + `listBudgets`/`createBudget`/`getBudget`/`updateBudget`/`deleteBudget`/`listBudgetAlerts`/`listBudgetPeriods` 客户端方法（contracts/api.md §0.3）。
+- [X] T023 [US1] 扩展 `src/features/finance/hooks/use-finance.ts`：`useBudgets`/`useCreateBudget`/`useUpdateBudget`/`useDeleteBudget`/`useBudgetAlerts`（TanStack Query，`onSuccess` 失效 `['finance','budgets']`/`['finance','budget-alerts']`）。
+- [X] T024 [US1] 新增 `src/features/finance/components/`：`BudgetForm.tsx`(设预算：分类+额度+周期+阈值)、`BudgetProgressRing.tsx`(已用/剩余/状态环)、`BudgetAlertsBanner.tsx`(即将超支/已超支提示，消费 `useBudgetAlerts`)、`BudgetHistoryChart.tsx`(历史周期)；接入个人仪表盘概览。沿用 frontend-dev 规范（MUI v7、sx 优先、react-i18next zh-CN）。
+- [X] T025 [US1] 集成测试（门控）全量验收 `tests/finance/budget.service.test.ts`：已用实时与账目一致（I1/SC-001）；超支事中触发（SC-002）；子类计入父类且单预算零双计（FR-004/I8）；transfer 不计入（I7）；改额度后历史周期 `amountSnapshot` 不变（I3/SC-005）（依赖 T013–T016）。
 
 **Checkpoint**: 分类预算 CRUD + 实时已用/剩余 + 阈值/超支预警 + 写后回带 + 跨月重置 + 历史不可变。MVP（SC-001/002/005）可独立验收。
 
@@ -96,19 +96,19 @@ description: "Task list for feature implementation"
 
 ### Tests for User Story 2（先写测试、确保失败再实现）
 
-- [ ] T026 [P] [US2] 纯函数测试 `tests/finance/goal.service.test.ts`：`computeGoalCurrent`(manual/linked/net_worth 三口径)、`computeGoalProgress`(on_track/at_risk/unreachable/completed；monthsToGoal=ceil(remaining/avgSurplus)；无 targetDate→etaDate=null；avgSurplus≤0→unreachable 且 etaDate=null **I5/SC-003**；avgSurplus>0→on_track，ETA>targetDate→at_risk；progressRate≥1→completed)（依赖 T009）。
-- [ ] T027 [P] [US2] 集成测试（门控）`tests/finance/goal.service.test.ts` 骨架：建 linked 目标（Σ 账号余额）、net_worth 口径（复用 `computeNetWorthLive`）、`getMonthlySurplusSeries`（transfers 排除）、ETA 由纯函数复现（SC-003）。先写、待实现后转绿。
+- [X] T026 [P] [US2] 纯函数测试 `tests/finance/goal.service.test.ts`：`computeGoalCurrent`(manual/linked/net_worth 三口径)、`computeGoalProgress`(on_track/at_risk/unreachable/completed；monthsToGoal=ceil(remaining/avgSurplus)；无 targetDate→etaDate=null；avgSurplus≤0→unreachable 且 etaDate=null **I5/SC-003**；avgSurplus>0→on_track，ETA>targetDate→at_risk；progressRate≥1→completed)（依赖 T009）。
+- [X] T027 [P] [US2] 集成测试（门控）`tests/finance/goal.service.test.ts` 骨架：建 linked 目标（Σ 账号余额）、net_worth 口径（复用 `computeNetWorthLive`）、`getMonthlySurplusSeries`（transfers 排除）、ETA 由纯函数复现（SC-003）。先写、待实现后转绿。
 
 ### Implementation for User Story 2
 
-- [ ] T028 [US2] `goal.service.ts` 编排：`createGoal`(basis=linked→`linkedAccountIds` 非空且账号属当前用户否则 INVARIANT；net_worth 忽略 linked；manual)、`updateGoal`(manual 基准可改 `manualAmount`；改 basis/linked 后重算)、`getGoalWithProgress(goalId,{windowMonths})`(取数→`computeGoalCurrent`+`getMonthlySurplusSeries`+`computeGoalProgress`)、`listGoalsWithProgress`（contracts/api.md §3 / 依赖 T007、T009、T010）。
-- [ ] T029 [US2] `goal.service.ts` 完成事件：在 `getGoalWithProgress`/`updateGoal` 中检测**首次** progressRate≥100% → 写 `completedAt`（事件标记）；`completed` 始终为派生标志（C4），不改 `status`（data-model.md §2.3/§5.3 / research.md 决策4）。
-- [ ] T030 [P] [US2] 扩展 `_lib/validation.ts`：`createGoalSchema`(targetAmount>0、progressBasis enum、targetDate? nullable、linkedAccountIds?)、`updateGoalSchema`(.partial())、`progressQuerySchema`(windowMonths? 默认3)；`_lib/serialize.ts`：`toGoalDto`(含派生 currentAmount/progressRate/completed/eta)、`toGoalProgressDto`(surplusSeries+eta)（contracts/api.md §3 / §3.6）。
-- [ ] T031 [P] [US2] 新增 `src/app/api/finance/goals/route.ts`(POST/GET) 与 `src/app/api/finance/goals/[id]/route.ts`(GET/PATCH/DELETE) 与 `src/app/api/finance/goals/[id]/progress/route.ts`(GET 进度+ETA+surplusSeries，可解释可追溯)；归属校验→404（C7）（contracts/api.md §3.1-3.6 / 依赖 T028、T030）。
-- [ ] T032 [P] [US2] 扩展 `features/finance/api.ts`：`GoalDTO`/`GoalProgressDTO` 类型 + `listGoals`/`createGoal`/`getGoal`/`updateGoal`/`deleteGoal`/`getGoalProgress` 客户端方法（contracts/api.md §0.3/§3.6）。
-- [ ] T033 [US2] 扩展 `hooks/use-finance.ts`：`useGoals`/`useCreateGoal`/`useUpdateGoal`/`useDeleteGoal`/`useGoalProgress`（失效 `['finance','goals']`）。
-- [ ] T034 [US2] 新增 `src/features/finance/components/`：`GoalForm.tsx`(名称/金额/截止日/口径/关联账号)、`GoalCard.tsx`(进度环 + ETA + unreachable 状态文案)、`GoalProgressDetail.tsx`(surplusSeries 明细，让 ETA 可解释可追溯 US3)；仪表盘集成；react-i18next zh-CN。
-- [ ] T035 [US2] 集成测试（门控）全量验收 `tests/finance/goal.service.test.ts`：三口径正确（D4）；ETA 可复现（SC-003）；结余≤0→unreachable 无假日期（I5）；无截止日→无 ETA（D5）；首次达标→completedAt（C4）（依赖 T028、T029）。
+- [X] T028 [US2] `goal.service.ts` 编排：`createGoal`(basis=linked→`linkedAccountIds` 非空且账号属当前用户否则 INVARIANT；net_worth 忽略 linked；manual)、`updateGoal`(manual 基准可改 `manualAmount`；改 basis/linked 后重算)、`getGoalWithProgress(goalId,{windowMonths})`(取数→`computeGoalCurrent`+`getMonthlySurplusSeries`+`computeGoalProgress`)、`listGoalsWithProgress`（contracts/api.md §3 / 依赖 T007、T009、T010）。
+- [X] T029 [US2] `goal.service.ts` 完成事件：在 `getGoalWithProgress`/`updateGoal` 中检测**首次** progressRate≥100% → 写 `completedAt`（事件标记）；`completed` 始终为派生标志（C4），不改 `status`（data-model.md §2.3/§5.3 / research.md 决策4）。
+- [X] T030 [P] [US2] 扩展 `_lib/validation.ts`：`createGoalSchema`(targetAmount>0、progressBasis enum、targetDate? nullable、linkedAccountIds?)、`updateGoalSchema`(.partial())、`progressQuerySchema`(windowMonths? 默认3)；`_lib/serialize.ts`：`toGoalDto`(含派生 currentAmount/progressRate/completed/eta)、`toGoalProgressDto`(surplusSeries+eta)（contracts/api.md §3 / §3.6）。
+- [X] T031 [P] [US2] 新增 `src/app/api/finance/goals/route.ts`(POST/GET) 与 `src/app/api/finance/goals/[id]/route.ts`(GET/PATCH/DELETE) 与 `src/app/api/finance/goals/[id]/progress/route.ts`(GET 进度+ETA+surplusSeries，可解释可追溯)；归属校验→404（C7）（contracts/api.md §3.1-3.6 / 依赖 T028、T030）。
+- [X] T032 [P] [US2] 扩展 `features/finance/api.ts`：`GoalDTO`/`GoalProgressDTO` 类型 + `listGoals`/`createGoal`/`getGoal`/`updateGoal`/`deleteGoal`/`getGoalProgress` 客户端方法（contracts/api.md §0.3/§3.6）。
+- [X] T033 [US2] 扩展 `hooks/use-finance.ts`：`useGoals`/`useCreateGoal`/`useUpdateGoal`/`useDeleteGoal`/`useGoalProgress`（失效 `['finance','goals']`）。
+- [X] T034 [US2] 新增 `src/features/finance/components/`：`GoalForm.tsx`(名称/金额/截止日/口径/关联账号)、`GoalCard.tsx`(进度环 + ETA + unreachable 状态文案)、`GoalProgressDetail.tsx`(surplusSeries 明细，让 ETA 可解释可追溯 US3)；仪表盘集成；react-i18next zh-CN。
+- [X] T035 [US2] 集成测试（门控）全量验收 `tests/finance/goal.service.test.ts`：三口径正确（D4）；ETA 可复现（SC-003）；结余≤0→unreachable 无假日期（I5）；无截止日→无 ETA（D5）；首次达标→completedAt（C4）（依赖 T028、T029）。
 
 **Checkpoint**: 储蓄目标 CRUD + 三口径进度 + ETA（可复现、负结余正确、开放式不估 ETA）。
 
@@ -122,14 +122,14 @@ description: "Task list for feature implementation"
 
 ### Tests for User Story 3（先写测试、确保失败再实现）
 
-- [ ] T036 [P] [US3] 确定性/可追溯测试 `tests/finance/budget.service.test.ts` + `goal.service.test.ts` 补充：相同输入→`BudgetAlert`/`GoalProgress` 输出恒定（可复现 SC-003/SC-004）；`BudgetAlert.spent` == 该周期子树 expense 交易之和（可逐项追溯）；`GoalProgress.eta` == `computeGoalProgress` 输出（不依赖 LLM）。先写、待实现后转绿。
+- [X] T036 [P] [US3] 确定性/可追溯测试 `tests/finance/budget.service.test.ts` + `goal.service.test.ts` 补充：相同输入→`BudgetAlert`/`GoalProgress` 输出恒定（可复现 SC-003/SC-004）；`BudgetAlert.spent` == 该周期子树 expense 交易之和（可逐项追溯）；`GoalProgress.eta` == `computeGoalProgress` 输出（不依赖 LLM）。先写、待实现后转绿。
 
 ### Implementation for User Story 3
 
-- [ ] T037 [US3] 规则层事实装配：在 `src/services/finance/rules-engine.service.ts`（或报告输入构建处）新增 `collectBudgetGoalFacts(userId, period, {windowMonths})`——复用 `listBudgetAlerts`（T013）+ `listGoalsWithProgress`（T028）产出**结构化事实**（FindingData 同构），作为 AI 月报输入；**禁止 LLM 重新计算金额**（FR-008/SC-004 / research.md 决策3 / US3 验收1-2 / 依赖 T013、T028）。
-- [ ] T038 [US3] 可追溯性：确认超支预警背后的账目明细（该周期命中预算子树的 expense 交易列表）与 ETA 背后的 surplusSeries，分别经 `GET budgets/[id]?period=`（T020）与 `GET goals/[id]/progress`（T031）可查——每个数值可审计（US3 验收1-2 / SC-004）。
-- [ ] T039 [US3] AI 月报护栏：在报告 prompt/输入层把预算+目标事实作为结构化上下文传入，并约束 LLM **仅引用所给数值、不得编造金额**（系统提示 + 事实注入）；校验「如何改善」建议基于规则结论（US3 验收3 / SC-004）。
-- [ ] T040 [US3] 集成/契约测试（门控）：超支预警数值 == 账目汇总（可追溯）；ETA == `computeGoalProgress`（可复现）；AI 报告输入含结构化事实、prompt 含禁造数约束（依赖 T037–T039）。
+- [X] T037 [US3] 规则层事实装配：在 `src/services/finance/rules-engine.service.ts`（或报告输入构建处）新增 `collectBudgetGoalFacts(userId, period, {windowMonths})`——复用 `listBudgetAlerts`（T013）+ `listGoalsWithProgress`（T028）产出**结构化事实**（FindingData 同构），作为 AI 月报输入；**禁止 LLM 重新计算金额**（FR-008/SC-004 / research.md 决策3 / US3 验收1-2 / 依赖 T013、T028）。
+- [X] T038 [US3] 可追溯性：确认超支预警背后的账目明细（该周期命中预算子树的 expense 交易列表）与 ETA 背后的 surplusSeries，分别经 `GET budgets/[id]?period=`（T020）与 `GET goals/[id]/progress`（T031）可查——每个数值可审计（US3 验收1-2 / SC-004）。
+- [X] T039 [US3] AI 月报护栏：在报告 prompt/输入层把预算+目标事实作为结构化上下文传入，并约束 LLM **仅引用所给数值、不得编造金额**（系统提示 + 事实注入）；校验「如何改善」建议基于规则结论（US3 验收3 / SC-004）。
+- [X] T040 [US3] 集成/契约测试（门控）：超支预警数值 == 账目汇总（可追溯）；ETA == `computeGoalProgress`（可复现）；AI 报告输入含结构化事实、prompt 含禁造数约束（依赖 T037–T039）。
 
 **Checkpoint**: 预算/目标数值 100% 来自规则、可追溯、可复现；LLM 仅表达不编造（SC-004）。
 
@@ -139,12 +139,12 @@ description: "Task list for feature implementation"
 
 **Purpose**: 端到端验收、质量门、错误处理与隔离核对、i18n 与文档。
 
-- [ ] T041 [P] 类型与质量门：`pnpm type-check` + `pnpm check`（type-check + lint）全绿，无 `any` 残留（`.claude/rules/typescript.md`）。仅计本特性新增文件零新增错误（基线已有 ~340 遗留错误，与本特性无关）。
-- [ ] T042 [P] 测试全绿：`pnpm test --run --silent='passed-only' 'finance'`（含 006 纯函数 `budget.service`/`goal.service` 始终运行 + 门控集成；Phase 0–4 既有测试无回归）。纯函数测试**不得**依赖 `FINANCE_INTEGRATION_TEST`。
-- [ ] T043 [P] SC 验收清单：按 `quickstart.md §5-§7` 逐项核对 SC-001（已用实时一致）/SC-002（超事事中预警）/SC-003（ETA 可复现 + 负结余 unreachable）/SC-004（数值 100% 来自规则、可追溯、LLM 不编造）/SC-005（跨月重置 + 历史无串扰）。
-- [ ] T044 [P] 错误处理与隔离核对：所有预算/目标路由 `requireUserId`；跨用户访问→404（不泄漏存在性 C7）；重复建预算/linked 账号不属用户→422 INVARIANT；金额字符串/内部 cents；`ledger.service` 写后回带 best-effort 非阻塞（contracts/api.md §0/§5 / research.md 决策9）。
-- [ ] T045 [P] i18n 与文档：预算/目标文案接入 react-i18next（zh-CN）；更新 `src/features/finance/README.md`（预算/目标说明：单一事实源、子树汇总、三口径、ETA 算法、历史不可变）与 `specs/006-budget-goals/` 交叉引用（quickstart.md §8）。
-- [ ] T046 [P] 端到端验证：按 `quickstart.md §5`（预算超支闭环 US1）与 `§6`（目标进度+ETA US2）curl 走通；`§7` 测试命令全绿。
+- [X] T041 [P] 类型与质量门：`pnpm type-check` + `pnpm check`（type-check + lint）全绿，无 `any` 残留（`.claude/rules/typescript.md`）。仅计本特性新增文件零新增错误（基线已有 ~340 遗留错误，与本特性无关）。
+- [X] T042 [P] 测试全绿：`pnpm test --run --silent='passed-only' 'finance'`（含 006 纯函数 `budget.service`/`goal.service` 始终运行 + 门控集成；Phase 0–4 既有测试无回归）。纯函数测试**不得**依赖 `FINANCE_INTEGRATION_TEST`。
+- [X] T043 [P] SC 验收清单：按 `quickstart.md §5-§7` 逐项核对 SC-001（已用实时一致）/SC-002（超事事中预警）/SC-003（ETA 可复现 + 负结余 unreachable）/SC-004（数值 100% 来自规则、可追溯、LLM 不编造）/SC-005（跨月重置 + 历史无串扰）。
+- [X] T044 [P] 错误处理与隔离核对：所有预算/目标路由 `requireUserId`；跨用户访问→404（不泄漏存在性 C7）；重复建预算/linked 账号不属用户→422 INVARIANT；金额字符串/内部 cents；`ledger.service` 写后回带 best-effort 非阻塞（contracts/api.md §0/§5 / research.md 决策9）。
+- [X] T045 [P] i18n 与文档：预算/目标文案接入 react-i18next（zh-CN）；更新 `src/features/finance/README.md`（预算/目标说明：单一事实源、子树汇总、三口径、ETA 算法、历史不可变）与 `specs/006-budget-goals/` 交叉引用（quickstart.md §8）。
+- [ ] T046 [P] 端到端验证：按 `quickstart.md §5`（预算超支闭环 US1）与 `§6`（目标进度+ETA US2）curl 走通；`§7` 测试命令全绿。⚠️ MANUAL：需已迁移的 PostgreSQL（应用 `0005_budget_goals.sql` 与 `0004_ai_wealth_advisor.sql`，见下）+ Supabase 会话 + 种子分类/账户/交易；沙箱不可运行。迁移已手写并注册（T005 done）；在真实终端 `psql "$DATABASE_URL" -1 -v ON_ERROR_STOP=1 -f src/database/migrations/0005_budget_goals.sql` 后执行本冒烟。
 
 ---
 

@@ -515,3 +515,98 @@ export function computeConcentrationAlert(
     ratio: ratio.toFixed(6),
   };
 }
+
+// ============ 趋势规则（Phase 6，决策 10 / 决策 13）============
+//
+// 纯函数：在多期 FindingData / 报告分之上产出趋势结论（metric=trend_*），沿用
+// FindingData 形状，无缝并入预警（alert.service）与趋势对比（trend.service）。
+// 不落单期 findings 表——趋势跨多期；调用方按需即时计算（决策 13：纯函数聚合）。
+
+/** 趋势方向（↑/↓/平稳）。 */
+export type TrendDirection = 'up' | 'down' | 'flat';
+
+/** 时序点：期次（YYYY-MM）+ 数值（升序）。 */
+export interface TrendPoint {
+  period: string;
+  value: number;
+}
+
+/**
+ * 趋势结论：沿用 FindingData 形状（metric=trend_*）+ 关联期次锚点（I1 可追溯）。
+ * - periods：触发下降的连续期次，作为 ruleFindingRefs 的可追溯来源。
+ */
+export interface TrendFinding extends FindingData {
+  /** 触发该趋势结论的期次（YYYY-MM[]），用于可追溯锚点。 */
+  periods: string[];
+}
+
+/**
+ * 纯函数：判定数值序列末尾是否连续 `periods` 期沿 `dir` 方向单调变动（决策 10）。
+ * - dir='down'：严格递减（每期 < 上期）；dir='up'：严格递增。
+ * - 序列长度不足 → false（不编造趋势）。
+ */
+export function isConsecutiveTrend(
+  series: number[],
+  dir: 'down' | 'up',
+  periods: number = TREND_DECLINE_PERIODS,
+): boolean {
+  if (series.length < periods || periods < 2) return false;
+  const tail = series.slice(-periods);
+  for (let i = 1; i < tail.length; i++) {
+    if (dir === 'down' && !(tail[i] < tail[i - 1])) return false;
+    if (dir === 'up' && !(tail[i] > tail[i - 1])) return false;
+  }
+  return true;
+}
+
+/**
+ * 纯函数：由数值序列推断方向（↑/↓/平稳，决策 13）。
+ * - 比较首末两点；不足两点 → 平稳。
+ */
+export function trendDirection(series: number[]): TrendDirection {
+  if (series.length < 2) return 'flat';
+  const first = series[0];
+  const last = series[series.length - 1];
+  if (last > first) return 'up';
+  if (last < first) return 'down';
+  return 'flat';
+}
+
+/**
+ * 纯函数：多期储蓄率 / 健康分序列 → 趋势结论（决策 10）。
+ * - 储蓄率连续 TREND_DECLINE_PERIODS 期下降 → trend_savings_decline（high）。
+ * - 健康分连续下降 → trend_health_decline（high）。
+ * - 无显著恶化 → 空数组（不编造）。
+ */
+export function computeTrendFindings(input: {
+  savingsRate: TrendPoint[];
+  healthScore: TrendPoint[];
+}): TrendFinding[] {
+  const out: TrendFinding[] = [];
+
+  const savingsVals = input.savingsRate.map((p) => p.value);
+  if (isConsecutiveTrend(savingsVals, 'down')) {
+    const pts = input.savingsRate.slice(-TREND_DECLINE_PERIODS);
+    out.push({
+      metric: 'trend_savings_decline',
+      value: null,
+      verdict: `储蓄率连续 ${TREND_DECLINE_PERIODS} 期下降`,
+      riskLevel: 'high',
+      periods: pts.map((p) => p.period),
+    });
+  }
+
+  const healthVals = input.healthScore.map((p) => p.value);
+  if (isConsecutiveTrend(healthVals, 'down')) {
+    const pts = input.healthScore.slice(-TREND_DECLINE_PERIODS);
+    out.push({
+      metric: 'trend_health_decline',
+      value: null,
+      verdict: `健康分连续 ${TREND_DECLINE_PERIODS} 期下降`,
+      riskLevel: 'high',
+      periods: pts.map((p) => p.period),
+    });
+  }
+
+  return out;
+}

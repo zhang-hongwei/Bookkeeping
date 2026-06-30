@@ -20,4 +20,13 @@ export * from './cash-flow-forecasts';
 export * from './smart-alerts';
 export * from './approvals';
 export * from './advisor';
+// Phase 5：预算与目标
+export * from './budgets';
+export * from './goals';
+// Phase 7：高级分析（what-if / 个税 / 退休 / 组合优化）
+export * from './scenarios';
+export * from './scenario-projections';
+export * from './tax-estimates';
+export * from './retirement-simulations';
+export * from './portfolio-hints';
 export * from './relations';

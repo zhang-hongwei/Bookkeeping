@@ -29,6 +29,27 @@
       "when": 1751200000000,
       "tag": "0003_family_finance",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1782777600000,
+      "tag": "0004_ai_wealth_advisor",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1782777600000,
+      "tag": "0005_budget_goals",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1782777600000,
+      "tag": "0006_advanced_analytics",
+      "breakpoints": true
     }
   ]
 }
