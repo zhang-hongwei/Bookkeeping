@@ -367,3 +367,129 @@ export type FamilyCurveQuery = z.infer<typeof familyCurveQuerySchema>;
 /** 账户可见性（家庭共享范围）。 */
 export const accountVisibilitySchema = z.enum(['shared', 'private']);
 export type AccountVisibilityBody = z.infer<typeof accountVisibilitySchema>;
+
+// ===== Phase 6：AI 财富顾问（预测/预警/顾问/审批/趋势）=====
+//
+// 共享 Zod 原语，跨 user story 复用（forecast/alert/advisor/approval/trend）。
+// 各 story 的具体请求体 schema 在对应实现任务中追加。
+
+/** 目标月 / 期次月：YYYY-MM。 */
+export const targetMonthSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}$/, '目标月格式应为 YYYY-MM');
+export type TargetMonthParam = z.infer<typeof targetMonthSchema>;
+
+/** 通用周期查询：?periodStart=&periodEnd=（YYYY-MM-DD）。 */
+export const periodQuerySchema = z.object({
+  periodStart: z.string().min(1).optional(),
+  periodEnd: z.string().min(1).optional(),
+});
+export type PeriodQuery = z.infer<typeof periodQuerySchema>;
+
+/** 风险等级（沿用 finance 域 RISK_LEVELS）。 */
+export const riskLevelEnum = z.enum(['none', 'low', 'medium', 'high']);
+export type RiskLevelParam = z.infer<typeof riskLevelEnum>;
+
+/** 预警严重度（由 riskLevel 映射而来，不含 none）。 */
+export const severityEnum = z.enum(['low', 'medium', 'high']);
+export type SeverityParam = z.infer<typeof severityEnum>;
+
+/** 智能预警种类（FR-002）。 */
+export const alertKindEnum = z.enum([
+  'emergency_shortfall',
+  'savings_rate_decline',
+  'debt_ratio_high',
+  'trend_deterioration',
+  'concentration',
+]);
+export type AlertKindParam = z.infer<typeof alertKindEnum>;
+
+/** 预警状态（FR-008）。 */
+export const alertStatusEnum = z.enum(['active', 'acknowledged', 'silenced']);
+export type AlertStatusParam = z.infer<typeof alertStatusEnum>;
+
+/** 预警列表查询状态（含 all 回看）。 */
+export const alertQueryStatusEnum = z.enum([
+  'active',
+  'acknowledged',
+  'silenced',
+  'all',
+]);
+export type AlertQueryStatusParam = z.infer<typeof alertQueryStatusEnum>;
+
+/** 审批状态机（FR-004 / SC-003）。 */
+export const approvalStatusEnum = z.enum([
+  'proposed',
+  'pending',
+  'approved',
+  'rejected',
+  'applied',
+  'expired',
+]);
+export type ApprovalStatusParam = z.infer<typeof approvalStatusEnum>;
+
+/** 审批动作种类白名单（FR-004 / 决策 6）。 */
+export const approvalKindEnum = z.enum([
+  'flag_transaction_anomaly',
+  'rebalance_suggestion',
+  'amend_finding_override',
+  'create_transaction',
+]);
+export type ApprovalKindParam = z.infer<typeof approvalKindEnum>;
+
+/** 预警列表查询：?status=。 */
+export const alertQuerySchema = z.object({
+  status: alertQueryStatusEnum.optional(),
+});
+export type AlertQuery = z.infer<typeof alertQuerySchema>;
+
+// ===== Phase 6 US1：现金流预测 / 预警 请求 schema =====
+
+/** 预测查询：?months=&target=YYYY-MM（months 从 query 字符串强制转数值）。 */
+export const forecastQuerySchema = z.object({
+  months: z.coerce.number().int().min(1).max(24).optional(),
+  target: targetMonthSchema.optional(),
+});
+export type ForecastQuery = z.infer<typeof forecastQuerySchema>;
+
+/** 预测重算请求体：{ targetMonth?, months? }。 */
+export const forecastPostSchema = z.object({
+  targetMonth: targetMonthSchema.optional(),
+  months: z.number().int().min(1).max(24).optional(),
+});
+export type ForecastPostBody = z.infer<typeof forecastPostSchema>;
+
+/** 单条预警状态更新：{ status: acknowledged | silenced }。 */
+export const patchAlertSchema = z.object({
+  status: z.enum(['acknowledged', 'silenced']),
+});
+export type PatchAlertBody = z.infer<typeof patchAlertSchema>;
+
+/** 预警偏好更新：{ kind, muted?, mutedUntil?, channel? }（按 userId+kind upsert）。 */
+export const patchAlertPreferenceSchema = z.object({
+  kind: alertKindEnum,
+  muted: z.boolean().optional(),
+  mutedUntil: z.string().nullable().optional(),
+  channel: z.string().max(20).nullable().optional(),
+});
+export type PatchAlertPreferenceBody = z.infer<typeof patchAlertPreferenceSchema>;
+
+// ===== Phase 6 US2：顾问对话 / 审批 请求 schema =====
+
+/** 新建顾问会话：{ title? }。 */
+export const createAdvisorSessionSchema = z.object({
+  title: z.string().max(120).optional(),
+});
+export type CreateAdvisorSessionBody = z.infer<typeof createAdvisorSessionSchema>;
+
+/** 发送提问：{ content }。 */
+export const sendMessageSchema = z.object({
+  content: z.string().min(1).max(2000),
+});
+export type SendMessageBody = z.infer<typeof sendMessageSchema>;
+
+/** 审批决定：{ decision: approve | reject }。 */
+export const approvalDecisionSchema = z.object({
+  decision: z.enum(['approve', 'reject']),
+});
+export type ApprovalDecisionBody = z.infer<typeof approvalDecisionSchema>;

@@ -16,6 +16,21 @@ import {
 import { toCents, fromCents, addCents } from './money';
 import { computeNetWorthAtDate } from './net-worth.service';
 
+// ============ Phase 6 标定常量（research.md 决策 2/3/10/12）============
+//
+// 阈值/口径不预先固化；以具名常量集中，临近实施按真实数据标定。
+
+/** 现金流预测：可靠预测所需的最少历史月数（决策 3）。 */
+export const MIN_HISTORY_MONTHS = 3;
+/** 现金流预测：向前预测的月数（决策 2）。 */
+export const FORECAST_HORIZON_MONTHS = 3;
+/** 现金流预测：回归/季节拟合的历史回看月数（决策 2）。 */
+export const LOOKBACK_MONTHS = 6;
+/** 健康分现金流稳定性：回看窗口月数（决策 12）。 */
+export const STABILITY_WINDOW = 6;
+/** 趋势预警：连续下降期数阈值（决策 10）。 */
+export const TREND_DECLINE_PERIODS = 3;
+
 export interface PeriodRange {
   start: string; // YYYY-MM-DD
   end: string;
@@ -180,6 +195,105 @@ export async function computeFindings(
   return computeFindingsFromData(await getPeriodMetrics(userId, period));
 }
 
+// ============ 月度迭代（Phase 6：预测回看 / 现金流稳定性 / 趋势）============
+
+/** (year, monthIdx 0-based) ± delta → 规范化（处理跨年）。 */
+function addMonths(
+  year: number,
+  monthIdx: number,
+  delta: number,
+): { year: number; monthIdx: number } {
+  const total = year * 12 + monthIdx + delta;
+  return {
+    year: Math.floor(total / 12),
+    monthIdx: ((total % 12) + 12) % 12,
+  };
+}
+
+/** 某月的完整周期 [首日 00:00Z, 末日 23:59:59Z]（YYYY-MM-DD）。 */
+function monthRange(year: number, monthIdx: number): PeriodRange {
+  const start = new Date(Date.UTC(year, monthIdx, 1));
+  const end = new Date(Date.UTC(year, monthIdx + 1, 0));
+  return {
+    start: start.toISOString().slice(0, 10),
+    end: end.toISOString().slice(0, 10),
+  };
+}
+
+/** 由 YYYY-MM-DD 解析 (year, monthIdx 0-based)。 */
+function parseYearMonth(date: string): { year: number; monthIdx: number } {
+  const [y, m] = date.split('-');
+  return { year: Number(y), monthIdx: Number(m) - 1 };
+}
+
+/**
+ * 取截止 `period.end` 所在月的最近 `months` 个月的月度结余序列（已过滤转账）。
+ * - 用于现金流稳定性评分（决策 12）与预测历史输入（决策 2）。
+ * - 返回按时间升序的金额字符串数组（decimal 2 位）。
+ */
+export async function getSurplusSeries(
+  userId: string,
+  period: PeriodRange,
+  months: number,
+): Promise<string[]> {
+  const { year, monthIdx } = parseYearMonth(period.end);
+  const ranges: PeriodRange[] = [];
+  for (let i = months - 1; i >= 0; i--) {
+    const m = addMonths(year, monthIdx, -i);
+    ranges.push(monthRange(m.year, m.monthIdx));
+  }
+  const pairs = await Promise.all(
+    ranges.map((r) =>
+      Promise.all([
+        sumAmountByType(userId, 'income', r),
+        sumAmountByType(userId, 'expense', r),
+      ]),
+    ),
+  );
+  return pairs.map(([inc, exp]) => fromCents(toCents(inc) - toCents(exp)));
+}
+
+/**
+ * 取截止 `period.end` 所在月的最近 `months` 个月的月均支出（已过滤转账）。
+ * - 用于预测应急金阈值（决策 2）。
+ * - 返回 decimal 字符串；无支出数据返回 '0'。
+ */
+export async function getMonthlyExpenseAverage(
+  userId: string,
+  period: PeriodRange,
+  months: number,
+): Promise<string> {
+  const { year, monthIdx } = parseYearMonth(period.end);
+  const ranges: PeriodRange[] = [];
+  for (let i = months - 1; i >= 0; i--) {
+    const m = addMonths(year, monthIdx, -i);
+    ranges.push(monthRange(m.year, m.monthIdx));
+  }
+  const expenses = await Promise.all(
+    ranges.map((r) => sumAmountByType(userId, 'expense', r)),
+  );
+  const totalCents = expenses.reduce((s, e) => s + toCents(e), 0);
+  return fromCents(Math.round(totalCents / months));
+}
+
+/** 由 YYYY-MM-DD 取其所属月份的 `YYYY-MM` 标识。 */
+export function monthKey(date: string): string {
+  return date.slice(0, 7);
+}
+
+/** 由 YYYY-MM 构造该月完整周期 PeriodRange（首日..末日，YYYY-MM-DD）。 */
+export function monthPeriod(month: string): PeriodRange {
+  const [y, m] = month.split('-').map(Number);
+  return monthRange(y, m - 1);
+}
+
+/** 由 YYYY-MM 平移 delta 月，返回目标月的 YYYY-MM。 */
+export function shiftMonthKey(month: string, delta: number): string {
+  const [y, m] = month.split('-').map(Number);
+  const r = addMonths(y, m - 1, delta);
+  return `${r.year}-${String(r.monthIdx + 1).padStart(2, '0')}`;
+}
+
 // ============ 健康分（US4）============
 
 export interface DimensionScore {
@@ -200,19 +314,79 @@ export interface HealthScore {
 }
 
 interface WeightedDim {
-  key: keyof Omit<HealthScore['dimensions'], 'investmentRate'>;
+  key: keyof HealthScore['dimensions'];
   weight: number;
   score: number;
 }
 
-/** 纯函数：由 findings 加权得健康分；缺失维度（投资率/无数据维度）降权重分配，不编造。 */
-export function computeHealthScore(findings: FindingData[]): HealthScore {
+/**
+ * 现金流稳定性评分（0–100，纯函数；决策 12）。
+ * - 输入按时间升序的月度结余序列（cents）。
+ * - 综合：非负月占比（不透支可靠性）+ 低变异系数（稳定度）− 下降趋势惩罚。
+ * - 单点序列退化为正负二元（向后兼容 Phase 1）。
+ */
+export function cashflowStabilityScore(seriesCents: number[]): {
+  score: number;
+  value: string;
+} {
+  const n = seriesCents.length;
+  if (n === 0) return { score: 50, value: '0' };
+  const latest = seriesCents[n - 1];
+  if (n === 1) {
+    return { score: latest >= 0 ? 100 : 30, value: fromCents(latest) };
+  }
+  const mean = seriesCents.reduce((s, x) => s + x, 0) / n;
+  const nonNegRatio = seriesCents.filter((x) => x >= 0).length / n;
+  const variance =
+    seriesCents.reduce((s, x) => s + (x - mean) ** 2, 0) / n;
+  const std = Math.sqrt(variance);
+  // 变异系数：mean<=0 视为高波动（cv=1）
+  const cv = mean > 0 ? std / mean : 1;
+  const stability = Math.max(0, 1 - Math.min(cv, 1));
+  // 趋势：后半均值 vs 前半均值，下降幅度归一到 [0,1]
+  const half = Math.floor(n / 2);
+  const firstHalf =
+    seriesCents.slice(0, half).reduce((s, x) => s + x, 0) / Math.max(half, 1);
+  const secondHalf =
+    seriesCents.slice(half).reduce((s, x) => s + x, 0) / Math.max(n - half, 1);
+  const declining =
+    secondHalf < firstHalf
+      ? Math.min(
+          (firstHalf - secondHalf) / (Math.abs(firstHalf) + 1),
+          1,
+        )
+      : 0;
+  // base = 非负占比×70 + 稳定度×20 − 下降惩罚×20，钳制 [20,100]
+  let score = nonNegRatio * 70 + stability * 20 - declining * 20;
+  score = Math.max(20, Math.min(100, Math.round(score)));
+  return { score, value: fromCents(latest) };
+}
+
+/** computeHealthScore 的可选增强输入（Phase 6，决策 12）。 */
+export interface HealthScoreOptions {
+  /** 投资资产（Phase 3 持仓市值合计；与 totalAssets 同口径，decimal 字符串）。 */
+  investmentAssets?: string;
+  /** 总资产（findings 同期 totalAssets）。 */
+  totalAssets?: string;
+  /** 近 STABILITY_WINDOW 期月度结余序列（decimal 字符串，升序）；缺省退化为 surplus 单点。 */
+  surplusSeries?: string[];
+}
+
+/**
+ * 纯函数：由 findings 加权得健康分；缺失维度（无数据维度）降权重分配，不编造。
+ * - investmentRate：接 Phase 3 持仓（investmentAssets / totalAssets，决策 12）；缺数据降权。
+ * - cashflow：近 STABILITY_WINDOW 月结余的方差稳定性评分（决策 12）。
+ */
+export function computeHealthScore(
+  findings: FindingData[],
+  options?: HealthScoreOptions,
+): HealthScore {
   const byMetric = new Map(findings.map((f) => [f.metric, f]));
   const dims = {
     savingsRate: { value: null as string | null, score: null as number | null } as DimensionScore,
     debtRatio: { value: null as string | null, score: null as number | null } as DimensionScore,
     emergency: { value: null as string | null, score: null as number | null } as DimensionScore,
-    investmentRate: { value: null, score: null, reason: 'await_phase3' } as DimensionScore,
+    investmentRate: { value: null as string | null, score: null as number | null } as DimensionScore,
     cashflow: { value: null as string | null, score: null as number | null } as DimensionScore,
   };
 
@@ -248,19 +422,62 @@ export function computeHealthScore(findings: FindingData[]): HealthScore {
     dims.emergency = { value: null, score: null, reason: emergency?.verdict ?? 'no_data' };
   }
 
-  // 现金流：基于结余正负（surplus finding）
-  const surplus = byMetric.get('surplus');
-  const surplusCents = toCents(surplus?.value ?? '0');
-  const cashflowScore = surplusCents >= 0 ? 100 : 30;
-  dims.cashflow = { value: surplus?.value ?? '0', score: cashflowScore };
-  present.push({ key: 'cashflow', weight: 15, score: cashflowScore });
+  // 投资率：接 Phase 3 持仓（决策 12）。investmentAssets/totalAssets 缺省 → 降权。
+  const totalAssetsCents = toCents(options?.totalAssets ?? '0');
+  if (
+    options?.investmentAssets != null &&
+    options.totalAssets != null &&
+    totalAssetsCents > 0
+  ) {
+    const rate = toCents(options.investmentAssets) / totalAssetsCents;
+    const score = rate >= 0.3 ? 100 : rate >= 0.1 ? 70 : rate > 0 ? 45 : 35;
+    dims.investmentRate = { value: rate.toFixed(4), score };
+    present.push({ key: 'investmentRate', weight: 15, score });
+  } else {
+    dims.investmentRate = {
+      value: null,
+      score: null,
+      reason: options?.totalAssets != null && totalAssetsCents === 0
+        ? 'no_assets'
+        : 'no_position_data',
+    };
+  }
 
-  // 投资率 Phase 1 无持仓 → 降权，权重重分配到 present 维度（按各自权重归一化）
+  // 现金流：近窗口结余的方差稳定性（决策 12）；无序列退化为 surplus 单点。
+  const surplus = byMetric.get('surplus');
+  const seriesCents = (options?.surplusSeries ?? [surplus?.value ?? '0']).map((s) =>
+    toCents(s),
+  );
+  const cf = cashflowStabilityScore(seriesCents);
+  dims.cashflow = { value: cf.value, score: cf.score };
+  present.push({ key: 'cashflow', weight: 15, score: cf.score });
+
+  // 缺失维度降权：权重重分配到 present 维度（按各自权重归一化）
   const weightSum = present.reduce((s, d) => s + d.weight, 0);
   const weightedScore = present.reduce((s, d) => s + d.score * d.weight, 0);
   const total = weightSum > 0 ? weightedScore / weightSum : 0;
 
   return { total: total.toFixed(2), dimensions: dims };
+}
+
+/**
+ * 取数 + 计算完善后健康分（Phase 6，FR-006）。
+ * - investmentRate：接 Phase 3 持仓（breakdown.investment / totalAssets）。
+ * - cashflow：近 STABILITY_WINDOW 月结余方差稳定性。
+ */
+export async function computeHealthScoreForUser(
+  userId: string,
+  period: PeriodRange,
+): Promise<HealthScore> {
+  const metrics = await getPeriodMetrics(userId, period);
+  const findings = computeFindingsFromData(metrics);
+  const nw = await computeNetWorthAtDate(userId, period.end);
+  const surplusSeries = await getSurplusSeries(userId, period, STABILITY_WINDOW);
+  return computeHealthScore(findings, {
+    investmentAssets: nw.breakdown.investment ?? '0',
+    totalAssets: metrics.totalAssets,
+    surplusSeries,
+  });
 }
 
 // ============ 集中度预警（Phase 3，US4，FR-007/SC-005）============

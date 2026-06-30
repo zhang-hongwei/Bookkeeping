@@ -554,6 +554,104 @@ export type FamilyMemberRoleBody = 'partner' | 'child' | 'parent' | 'other';
 export type ShareModeBody = 'shared' | 'private_by_default';
 export type DefaultViewBody = 'personal' | 'family';
 
+// ===== Phase 6：AI 财富顾问（预测 / 预警 / 顾问 / 审批 / 趋势）DTO =====
+
+/** 可追溯来源锚点（SC-002 / I1）。 */
+export interface SourceRefDTO {
+  metric: string;
+  period: string;
+  value: string | null;
+  verdict: string;
+  riskLevel: string;
+}
+
+/** 合规 + 可追溯封装（FR-009）。 */
+export interface DisclaimerEnvelope<T> {
+  data: T;
+  disclaimer: string;
+  sourceRefs: SourceRefDTO[];
+}
+
+export type AlertKindDTO =
+  | 'emergency_shortfall'
+  | 'savings_rate_decline'
+  | 'debt_ratio_high'
+  | 'trend_deterioration'
+  | 'concentration';
+export type AlertSeverityDTO = 'low' | 'medium' | 'high';
+export type AlertStatusDTO = 'active' | 'acknowledged' | 'silenced';
+
+export interface ForecastPointDTO {
+  month: string;
+  surplus: string;
+  cashBalance: string;
+  lower: string;
+  upper: string;
+}
+export interface ForecastDTO {
+  targetMonth: string;
+  insufficientHistory: boolean;
+  points: ForecastPointDTO[];
+  emergencyShortfallMonth: string | null;
+  modelVersion: string;
+  generatedAt: string;
+}
+export interface AlertDTO {
+  id: string;
+  kind: AlertKindDTO;
+  severity: AlertSeverityDTO;
+  period: string;
+  status: AlertStatusDTO;
+  message: string;
+  ruleFindingRefs: SourceRefDTO[];
+  createdAt: string;
+}
+export interface AlertPreferenceDTO {
+  kind: AlertKindDTO;
+  muted: boolean;
+  mutedUntil: string | null;
+  channel: string | null;
+}
+
+export interface AdvisorSessionDTO {
+  id: string;
+  title: string | null;
+  createdAt: string;
+}
+export interface AdvisorMessageDTO {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  citedFindings: SourceRefDTO[];
+  degraded: boolean;
+  proposalId: string | null;
+  createdAt: string;
+}
+export type ApprovalKindDTO =
+  | 'flag_transaction_anomaly'
+  | 'rebalance_suggestion'
+  | 'amend_finding_override'
+  | 'create_transaction';
+export type ApprovalStatusDTO =
+  | 'proposed'
+  | 'pending'
+  | 'approved'
+  | 'rejected'
+  | 'applied'
+  | 'expired';
+export interface ApprovalDTO {
+  id: string;
+  kind: ApprovalKindDTO;
+  payload: unknown;
+  status: ApprovalStatusDTO;
+  ruleValidation: { passed: boolean; reason?: string; refs: SourceRefDTO[] };
+  proposedBy: string | null;
+  approvedAt: string | null;
+  appliedAt: string | null;
+  appliedResult: unknown;
+  expiresAt: string;
+}
+
 const BASE = '/api/finance';
 
 export const financeApi = {
@@ -877,4 +975,74 @@ export const financeApi = {
       method: 'PATCH',
       body: JSON.stringify({ visibility }),
     }),
+
+  // ===== Phase 6：现金流预测 / 智能预警 =====
+  getForecast: (params?: { months?: number; target?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.months) qs.set('months', String(params.months));
+    if (params?.target) qs.set('target', params.target);
+    const query = qs.toString();
+    return http<DisclaimerEnvelope<ForecastDTO>>(
+      `${BASE}/forecasts${query ? `?${query}` : ''}`,
+    );
+  },
+  regenerateForecast: (payload?: { targetMonth?: string; months?: number }) =>
+    http<DisclaimerEnvelope<ForecastDTO>>(`${BASE}/forecasts`, {
+      method: 'POST',
+      body: JSON.stringify(payload ?? {}),
+    }),
+  getAlerts: (status?: AlertStatusDTO | 'all') => {
+    const qs = status ? `?status=${status}` : '';
+    return http<DisclaimerEnvelope<{ alerts: AlertDTO[] }>>(`${BASE}/alerts${qs}`);
+  },
+  patchAlert: (id: string, status: 'acknowledged' | 'silenced') =>
+    http<AlertDTO>(`${BASE}/alerts/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    }),
+  getAlertPreferences: () =>
+    http<{ preferences: AlertPreferenceDTO[] }>(`${BASE}/alerts/preferences`),
+  patchAlertPreference: (payload: {
+    kind: AlertKindDTO;
+    muted?: boolean;
+    mutedUntil?: string | null;
+    channel?: string | null;
+  }) =>
+    http<AlertPreferenceDTO>(`${BASE}/alerts/preferences`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+
+  // ===== Phase 6 US2：顾问对话 / 审批闭环 =====
+  createAdvisorSession: (payload?: { title?: string }) =>
+    http<{ sessionId: string; session: AdvisorSessionDTO }>(`${BASE}/advisor/sessions`, {
+      method: 'POST',
+      body: JSON.stringify(payload ?? {}),
+    }),
+  listAdvisorSessions: () =>
+    http<{ sessions: AdvisorSessionDTO[] }>(`${BASE}/advisor/sessions`),
+  listAdvisorMessages: (sessionId: string) =>
+    http<DisclaimerEnvelope<{ messages: AdvisorMessageDTO[] }>>(
+      `${BASE}/advisor/sessions/${sessionId}/messages`,
+    ),
+  sendAdvisorMessage: (sessionId: string, content: string) =>
+    http<DisclaimerEnvelope<AdvisorMessageDTO>>(
+      `${BASE}/advisor/sessions/${sessionId}/messages`,
+      { method: 'POST', body: JSON.stringify({ content }) },
+    ),
+  listApprovals: (status?: ApprovalStatusDTO | 'all') => {
+    const qs = status ? `?status=${status}` : '';
+    return http<{ approvals: ApprovalDTO[] }>(`${BASE}/approvals${qs}`);
+  },
+  getApproval: (id: string) => http<ApprovalDTO>(`${BASE}/approvals/${id}`),
+  decideApproval: (id: string, decision: 'approve' | 'reject') =>
+    http<ApprovalDTO>(`${BASE}/approvals/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ decision }),
+    }),
+  applyApproval: (id: string) =>
+    http<{ status: string; appliedResult: unknown; approval: ApprovalDTO; idempotent: boolean }>(
+      `${BASE}/approvals/${id}/apply`,
+      { method: 'POST' },
+    ),
 };

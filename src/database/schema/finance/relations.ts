@@ -20,6 +20,11 @@ import { financeInvestmentTrades } from './investment-trades';
 import { financeDcaPlans } from './dca-plans';
 import { financeFamilies, financeFamilyMembers } from './families';
 import { financeFamilyNetWorthSnapshots } from './family-snapshots';
+// Phase 6：AI 财富顾问
+import { cashFlowForecasts } from './cash-flow-forecasts';
+import { smartAlerts, alertPreferences } from './smart-alerts';
+import { approvals } from './approvals';
+import { advisorSessions, advisorMessages } from './advisor';
 
 export const financeAccountsRelations = relations(
   financeAccounts,
@@ -188,3 +193,31 @@ export const financeFamilyNetWorthSnapshotsRelations = relations(
     }),
   }),
 );
+
+// Phase 6：AI 财富顾问
+// cashFlowForecasts / smartAlerts / alertPreferences 仅 userId 作用域，
+// 无强外键到 findings（findings 可被覆盖重算，引用存 jsonb 快照）—— 留空占位保证 barrel 一致。
+export const cashFlowForecastsRelations = relations(cashFlowForecasts, () => ({}));
+export const smartAlertsRelations = relations(smartAlerts, () => ({}));
+export const alertPreferencesRelations = relations(alertPreferences, () => ({}));
+
+// 顾问会话 ↔ 消息 ↔ 审批（proposalId FK；proposedBy 为软引用不在 relations 建模）
+export const advisorSessionsRelations = relations(advisorSessions, ({ many }) => ({
+  messages: many(advisorMessages),
+}));
+
+export const advisorMessagesRelations = relations(advisorMessages, ({ one, many }) => ({
+  session: one(advisorSessions, {
+    fields: [advisorMessages.sessionId],
+    references: [advisorSessions.id],
+  }),
+  proposal: one(approvals, {
+    fields: [advisorMessages.proposalId],
+    references: [approvals.id],
+  }),
+}));
+
+export const approvalsRelations = relations(approvals, ({ many }) => ({
+  // 被（多条）顾问消息引用（proposalId）；proposedBy 软引用不建模
+  proposedIn: many(advisorMessages),
+}));

@@ -1,10 +1,12 @@
 /**
- * 财务健康分 API（US4）。
- * - GET /api/finance/health-score?periodStart=&periodEnd=   findings 加权 0–100 + 各维度（缺失降权标注）
+ * 财务健康分 API（US4 / Phase 6 FR-006）。
+ * - GET /api/finance/health-score?periodStart=&periodEnd=
+ *   findings 加权 0–100 + 各维度（缺失降权标注）。
+ * - Phase 6：investmentRate 接 Phase 3 持仓、cashflow 为方差稳定性评分（决策 12）。
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { requireUserId } from '@/app/api/finance/_lib/auth';
-import { computeFindings, computeHealthScore } from '@/services/finance/rules-engine.service';
+import { computeHealthScoreForUser } from '@/services/finance/rules-engine.service';
 
 export async function GET(request: NextRequest) {
   try {
@@ -22,8 +24,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const findings = await computeFindings(userId, { start: periodStart, end: periodEnd });
-    const health = computeHealthScore(findings);
+    const health = await computeHealthScoreForUser(userId, { start: periodStart, end: periodEnd });
     return NextResponse.json({ total: health.total, dimensions: health.dimensions });
   } catch (error) {
     console.error('GET /api/finance/health-score error:', error);

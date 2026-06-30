@@ -713,3 +713,152 @@ export function useUpdateAccountVisibility() {
     },
   });
 }
+
+// ===== Phase 6：现金流预测 / 智能预警 =====
+
+/** 现金流预测（读取/即时生成缓存；带不确定性区间 + 应急金不足点）。 */
+export function useForecast(params?: { months?: number; target?: string }) {
+  return useQuery({
+    queryKey: ['finance', 'forecast', params ?? {}],
+    queryFn: () => financeApi.getForecast(params),
+  });
+}
+
+/** 重新生成预测（覆盖缓存）。 */
+export function useRegenerateForecast() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload?: { targetMonth?: string; months?: number }) =>
+      financeApi.regenerateForecast(payload),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['finance', 'forecast'] });
+    },
+  });
+}
+
+/** 智能预警列表（active 默认过滤已静默 kind）。 */
+export function useAlerts(status?: 'active' | 'acknowledged' | 'silenced' | 'all') {
+  return useQuery({
+    queryKey: ['finance', 'alerts', status ?? 'active'],
+    queryFn: () => financeApi.getAlerts(status),
+  });
+}
+
+/** 更新单条预警状态（已读/静默）。 */
+export function usePatchAlert() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status }: { id: string; status: 'acknowledged' | 'silenced' }) =>
+      financeApi.patchAlert(id, status),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['finance', 'alerts'] });
+    },
+  });
+}
+
+/** 预警偏好/静默列表。 */
+export function useAlertPreferences() {
+  return useQuery({
+    queryKey: ['finance', 'alert-preferences'],
+    queryFn: () => financeApi.getAlertPreferences(),
+  });
+}
+
+/** 更新预警偏好（按 kind upsert 静默）。 */
+export function usePatchAlertPreference() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: {
+      kind: import('../api').AlertKindDTO;
+      muted?: boolean;
+      mutedUntil?: string | null;
+      channel?: string | null;
+    }) => financeApi.patchAlertPreference(payload),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['finance', 'alert-preferences'] });
+      void qc.invalidateQueries({ queryKey: ['finance', 'alerts'] });
+    },
+  });
+}
+
+// ===== Phase 6 US2：顾问对话 / 审批闭环 =====
+
+/** 顾问会话列表。 */
+export function useAdvisorSessions() {
+  return useQuery({
+    queryKey: ['finance', 'advisor-sessions'],
+    queryFn: () => financeApi.listAdvisorSessions(),
+  });
+}
+
+/** 新建顾问会话。 */
+export function useCreateAdvisorSession() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload?: { title?: string }) =>
+      financeApi.createAdvisorSession(payload),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['finance', 'advisor-sessions'] });
+    },
+  });
+}
+
+/** 会话历史。 */
+export function useAdvisorMessages(sessionId: string | null | undefined) {
+  return useQuery({
+    queryKey: ['finance', 'advisor-messages', sessionId],
+    queryFn: () => financeApi.listAdvisorMessages(sessionId!),
+    enabled: Boolean(sessionId),
+  });
+}
+
+/** 发送提问（LLM 表达 + 降级 + 可能提议）。 */
+export function useSendAdvisorMessage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ sessionId, content }: { sessionId: string; content: string }) =>
+      financeApi.sendAdvisorMessage(sessionId, content),
+    onSuccess: (_data, vars) => {
+      void qc.invalidateQueries({
+        queryKey: ['finance', 'advisor-messages', vars.sessionId],
+      });
+      // 可能产生高风险提议 → 刷新审批列表
+      void qc.invalidateQueries({ queryKey: ['finance', 'approvals'] });
+    },
+  });
+}
+
+/** 审批列表。 */
+export function useApprovals(status?: import('../api').ApprovalStatusDTO | 'all') {
+  return useQuery({
+    queryKey: ['finance', 'approvals', status ?? 'all'],
+    queryFn: () => financeApi.listApprovals(status),
+  });
+}
+
+/** 批准 / 拒绝。 */
+export function useDecideApproval() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, decision }: { id: string; decision: 'approve' | 'reject' }) =>
+      financeApi.decideApproval(id, decision),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['finance', 'approvals'] });
+    },
+  });
+}
+
+/** 落库（幂等）。 */
+export function useApplyApproval() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => financeApi.applyApproval(id),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['finance', 'approvals'] });
+      // create_transaction 落库影响账目/净资产
+      void qc.invalidateQueries({ queryKey: ['finance', 'accounts'] });
+      void qc.invalidateQueries({ queryKey: ['finance', 'transactions'] });
+      void qc.invalidateQueries({ queryKey: ['finance', 'net-worth'] });
+    },
+  });
+}

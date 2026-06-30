@@ -23,8 +23,8 @@ Next.js 全栈单仓（App Router）。`src/database/schema/finance` → `src/re
 
 **Purpose**: Shared, story-agnostic groundwork reused by every Phase 6 route/DTO.
 
-- [ ] T001 [P] Add `SourceRef` type, `DisclaimerEnvelope<T>` helper, and `NON_INVESTMENT_ADVICE_DISCLAIMER` constant to `src/app/api/finance/_lib/serialize.ts` (FR-007/FR-009, used by all story responses)
-- [ ] T002 [P] Add shared Zod primitives to `src/app/api/finance/_lib/validation.ts`: period/month query schema, `riskLevel`/`severity`/alert `kind`/approval `status` enums, `targetMonth` regex (reused across stories)
+- [X] T001 [P] Add `SourceRef` type, `DisclaimerEnvelope<T>` helper, and `NON_INVESTMENT_ADVICE_DISCLAIMER` constant to `src/app/api/finance/_lib/serialize.ts` (FR-007/FR-009, used by all story responses)
+- [X] T002 [P] Add shared Zod primitives to `src/app/api/finance/_lib/validation.ts`: period/month query schema, `riskLevel`/`severity`/alert `kind`/approval `status` enums, `targetMonth` regex (reused across stories)
 
 **Checkpoint**: Shared DTO + validation scaffolding ready for all stories.
 
@@ -34,8 +34,8 @@ Next.js 全栈单仓（App Router）。`src/database/schema/finance` → `src/re
 
 **Purpose**: Rules-engine enhancements to the shared fact layer consumed by US2/US3.
 
-- [ ] T003 Complete health-score dimensions in `src/services/finance/rules-engine.service.ts` (FR-006): wire `investmentRate` to Phase 3 positions (`investmentAssets / totalAssets`, reuse allocation/position data, drop `await_phase3` stub); replace binary `cashflow` with variance/stability score over `STABILITY_WINDOW` months (research.md 决策 12)
-- [ ] T004 Update `tests/finance/rules-engine.service.test.ts`: assert `investmentRate` reflects positions and `cashflow` reflects variance (covers FR-006 determinism/reproducibility)
+- [X] T003 Complete health-score dimensions in `src/services/finance/rules-engine.service.ts` (FR-006): wire `investmentRate` to Phase 3 positions (`investmentAssets / totalAssets`, reuse allocation/position data, drop `await_phase3` stub); replace binary `cashflow` with variance/stability score over `STABILITY_WINDOW` months (research.md 决策 12)
+- [X] T004 Update `tests/finance/rules-engine.service.test.ts`: assert `investmentRate` reflects positions and `cashflow` reflects variance (covers FR-006 determinism/reproducibility)
 
 **⚠️ Note**: US1 (forecast) does NOT depend on T003/T004 and may proceed in parallel. US2/US3 consume the completed health score in their fact layer.
 
@@ -50,28 +50,28 @@ Next.js 全栈单仓（App Router）。`src/database/schema/finance` → `src/re
 
 ### Tests for User Story 1
 
-- [ ] T005 [P] [US1] Write `tests/finance/forecast.service.test.ts`: pure-function reproducibility (I3), uncertainty interval present, insufficient-history degradation returns empty points (SC-001/SC-005), money as decimal (I4)
-- [ ] T006 [P] [US1] Write `tests/finance/alert.service.test.ts`: idempotent materialization on `(userId,kind,period)` (I6), `ruleFindingRefs` non-empty (I1), preferences mute filtering (FR-008)
+- [X] T005 [P] [US1] Write `tests/finance/forecast.service.test.ts`: pure-function reproducibility (I3), uncertainty interval present, insufficient-history degradation returns empty points (SC-001/SC-005), money as decimal (I4)
+- [X] T006 [P] [US1] Write `tests/finance/alert.service.test.ts`: idempotent materialization on `(userId,kind,period)` (I6), `ruleFindingRefs` non-empty (I1), preferences mute filtering (FR-008)
 
 > Write tests FIRST; ensure they FAIL before implementation.
 
 ### Implementation for User Story 1
 
-- [ ] T007 [P] [US1] Create `src/database/schema/finance/cash-flow-forecasts.ts` (`finance_cash_flow_forecasts`: id, userId, targetMonth varchar(7), series jsonb, insufficientHistory bool, generatedAt, timestamps; unique `(userId,targetMonth)`) per data-model.md §2.1
-- [ ] T008 [P] [US1] Create `src/database/schema/finance/smart-alerts.ts` (`finance_smart_alerts` + `finance_alert_preferences`: columns per data-model.md §2.2/§2.3; unique `(userId,kind,period)` on alerts, `(userId,kind)` on preferences)
-- [ ] T009 [US1] Register new tables + relations in `src/database/schema/finance/index.ts` and `src/database/schema/finance/relations.ts` (depends T007, T008)
-- [ ] T010 [US1] Generate migration: `pnpm drizzle-kit generate` (T007/T008 tables + indexes)
-- [ ] T011 [P] [US1] Implement `src/repositories/finance/forecast.repository.ts` (userId-scoped upsert/read by targetMonth, extends `FinanceRepository` base)
-- [ ] T012 [P] [US1] Implement `src/repositories/finance/alert.repository.ts` (userId-scoped; idempotent upsert on `(userId,kind,period)`; preference upsert; list-by-status)
-- [ ] T013 [US1] Implement `src/services/finance/forecast.service.ts`: pure function (linear trend + monthly seasonality + residual-based uncertainty, research.md 决策 2), `MIN_HISTORY_MONTHS`/`FORECAST_HORIZON_MONTHS`/`LOOKBACK_MONTHS` constants, emergency-shortfall detection, insufficient-history degradation (决策 3), cache via forecast.repository, inputs from `sumAmountByType`/`getPeriodMetrics` (depends T011)
-- [ ] T014 [US1] Implement `src/services/finance/alert.service.ts`: rule-triggered generation over latest findings+forecast (kinds `emergency_shortfall`/`savings_rate_decline`/`debt_ratio_high`; reuse `computeFindingsFromData` + concentration pattern), idempotent materialize, `ruleFindingRefs` populated (I1), preference-based filtering (depends T012, T013)
-- [ ] T015 [US1] Add forecast/alert DTOs + Zod request schemas to `src/app/api/finance/_lib/serialize.ts` and `src/app/api/finance/_lib/validation.ts` (depends T001, T002)
-- [ ] T016 [P] [US1] Implement `src/app/api/finance/forecasts/route.ts`: `GET` (read/regenerate cache) + `POST` (recompute), wrap in `DisclaimerEnvelope`, 401 via `requireUserId` (§1)
-- [ ] T017 [P] [US1] Implement `src/app/api/finance/alerts/route.ts` (`GET ?status=`) and `src/app/api/finance/alerts/[id]/route.ts` (`PATCH acknowledge|silenced`) (§2.1/§2.2)
-- [ ] T018 [US1] Implement `src/app/api/finance/alerts/preferences/route.ts` (`GET` / `PATCH` upsert by kind) (§2.3)
-- [ ] T019 [P] [US1] Add forecast/alert methods + DTOs to `src/features/finance/api.ts` and TanStack Query hooks to `src/features/finance/hooks/use-finance.ts` (invalidate on PATCH/recompute)
-- [ ] T020 [US1] Build `src/features/finance/components/ForecastPanel.tsx` (predicted series + uncertainty band + emergency-shortfall marker + disclaimer + "为什么是这个数" expandable sourceRefs)
-- [ ] T021 [US1] Build `src/features/finance/components/AlertsPanel.tsx` (active alerts list + acknowledge + per-kind mute via preferences)
+- [X] T007 [P] [US1] Create `src/database/schema/finance/cash-flow-forecasts.ts` (`finance_cash_flow_forecasts`: id, userId, targetMonth varchar(7), series jsonb, insufficientHistory bool, generatedAt, timestamps; unique `(userId,targetMonth)`) per data-model.md §2.1
+- [X] T008 [P] [US1] Create `src/database/schema/finance/smart-alerts.ts` (`finance_smart_alerts` + `finance_alert_preferences`: columns per data-model.md §2.2/§2.3; unique `(userId,kind,period)` on alerts, `(userId,kind)` on preferences)
+- [X] T009 [US1] Register new tables + relations in `src/database/schema/finance/index.ts` and `src/database/schema/finance/relations.ts` (depends T007, T008)
+- [ ] T010 [US1] Generate migration: `pnpm drizzle-kit generate` (T007/T008 tables + indexes) — ⚠️ BLOCKED: drizzle-kit interactive rename-conflict resolver requires a TTY unavailable in this sandbox; schema ready, run in a real terminal
+- [X] T011 [P] [US1] Implement `src/repositories/finance/forecast.repository.ts` (userId-scoped upsert/read by targetMonth, extends `FinanceRepository` base)
+- [X] T012 [P] [US1] Implement `src/repositories/finance/alert.repository.ts` (userId-scoped; idempotent upsert on `(userId,kind,period)`; preference upsert; list-by-status)
+- [X] T013 [US1] Implement `src/services/finance/forecast.service.ts`: pure function (linear trend + monthly seasonality + residual-based uncertainty, research.md 决策 2), `MIN_HISTORY_MONTHS`/`FORECAST_HORIZON_MONTHS`/`LOOKBACK_MONTHS` constants, emergency-shortfall detection, insufficient-history degradation (决策 3), cache via forecast.repository, inputs from `sumAmountByType`/`getPeriodMetrics` (depends T011)
+- [X] T014 [US1] Implement `src/services/finance/alert.service.ts`: rule-triggered generation over latest findings+forecast (kinds `emergency_shortfall`/`savings_rate_decline`/`debt_ratio_high`; reuse `computeFindingsFromData` + concentration pattern), idempotent materialize, `ruleFindingRefs` populated (I1), preference-based filtering (depends T012, T013)
+- [X] T015 [US1] Add forecast/alert DTOs + Zod request schemas to `src/app/api/finance/_lib/serialize.ts` and `src/app/api/finance/_lib/validation.ts` (depends T001, T002)
+- [X] T016 [P] [US1] Implement `src/app/api/finance/forecasts/route.ts`: `GET` (read/regenerate cache) + `POST` (recompute), wrap in `DisclaimerEnvelope`, 401 via `requireUserId` (§1)
+- [X] T017 [P] [US1] Implement `src/app/api/finance/alerts/route.ts` (`GET ?status=`) and `src/app/api/finance/alerts/[id]/route.ts` (`PATCH acknowledge|silenced`) (§2.1/§2.2)
+- [X] T018 [US1] Implement `src/app/api/finance/alerts/preferences/route.ts` (`GET` / `PATCH` upsert by kind) (§2.3)
+- [X] T019 [P] [US1] Add forecast/alert methods + DTOs to `src/features/finance/api.ts` and TanStack Query hooks to `src/features/finance/hooks/use-finance.ts` (invalidate on PATCH/recompute)
+- [X] T020 [US1] Build `src/features/finance/components/ForecastPanel.tsx` (predicted series + uncertainty band + emergency-shortfall marker + disclaimer + "为什么是这个数" expandable sourceRefs)
+- [X] T021 [US1] Build `src/features/finance/components/AlertsPanel.tsx` (active alerts list + acknowledge + per-kind mute via preferences)
 
 **Checkpoint**: US1 fully functional & independently testable — forecasts render with uncertainty, emergency alerts fire & are traceable/silenceable, degradation path works. (MVP)
 

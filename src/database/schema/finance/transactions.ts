@@ -30,6 +30,10 @@ export type TransactionSource = (typeof TRANSACTION_SOURCES)[number];
 export const ENTRY_SIDES = ['debit', 'credit'] as const;
 export type EntrySide = (typeof ENTRY_SIDES)[number];
 
+/** 异常标记（Phase 6，flag_transaction_anomaly 审批落点；NULL=未标记，向后兼容）。 */
+export const ANOMALY_FLAGS = ['flagged', 'cleared'] as const;
+export type AnomalyFlag = (typeof ANOMALY_FLAGS)[number];
+
 /**
  * 交易 —— 一笔业务事件（收入/支出/转账）。
  * `amount` 为冗余的交易金额（>0），便于查询；权威金额在 entries。
@@ -61,6 +65,8 @@ export const transactions = pgTable('finance_transactions', {
   // amount = principal + interest；便于「利息支出」报表与拆分追溯。
   principalAmount: decimal('principal_amount', { precision: 18, scale: 2 }),
   interestAmount: decimal('interest_amount', { precision: 18, scale: 2 }),
+  // Phase 6：异常标记（flag_transaction_anomaly 审批 apply 落点；NULL=未标记，向后兼容）。
+  anomalyFlag: varchar('anomaly_flag', { length: 16 }).$type<AnomalyFlag | null>(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
