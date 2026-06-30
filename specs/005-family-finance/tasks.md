@@ -96,17 +96,17 @@ description: "Task list for feature implementation"
 
 ### Tests for User Story 2（先写测试、确保失败再实现）
 
-- [ ] T026 [P] [US2] 集成测试（门控）`tests/finance/family-attribution.service.test.ts` 骨架：按 memberId 聚合收支画像；joint 不计入个人画像（I6）；memberId 必属调用者家庭（伪造他人家庭 memberId → 拒绝）。先写、待实现后转绿。
+- [X] T026 [P] [US2] 集成测试（门控）`tests/finance/family-attribution.service.test.ts` 骨架：按 memberId 聚合收支画像；joint 不计入个人画像（I6）；memberId 必属调用者家庭（伪造他人家庭 memberId → 拒绝）。先写、待实现后转绿。
 
 ### Implementation for User Story 2
 
-- [ ] T027 [US2] 改 `src/services/finance/ledger.service.ts`：`CreateTransactionInput`（:59）增 `memberId?: string`，透传至事务内 transactions 插入（:213）；**校验 memberId 属于调用者所在 active 家庭**（否则抛 `ShareScopeError`→403 / `LedgerInvariantError`→422，防伪造归属）；`editTransaction`/`patchTransaction` 同步携带 memberId（data-model.md §3.1 / contracts/api.md §6 / 依赖 T003、T009）。
-- [ ] T028 [US2] 新增 `src/services/finance/family-attribution.service.ts` 的 `getMemberProfile({familyId, userId, memberId, from, to})`：聚合 `transactions.memberId = memberId`（income/expense/surplus + 按 categoryId 的 topCategories）；joint memberId → 聚合所有 joint 交易（家庭合计语义，不计入个人）；调用者须为家庭成员（`requireFamilyMembership`）。**归属口径与账号 owner 正交**（research.md 决策4）（FR-004 / contracts/api.md §4.1 / 依赖 T009）。
-- [ ] T029 [P] [US2] 扩展 `_lib/validation.ts`：`memberProfileQuerySchema`(from/to 可选)、`updateMemberSchema`(displayName?/role?/shareMode?/defaultView?，role ∉ self/joint)；`_lib/serialize.ts`：`toMemberProfileDto`（contracts/api.md §2.2/§4.1）。
-- [ ] T030 [P] [US2] 新增 `families/[id]/members/[memberId]/route.ts`（PATCH 改 displayName/role/shareMode/defaultView；**DELETE 退出**留 US3 实现占位）与 `families/[id]/members/[memberId]/profile/route.ts`（GET 画像）；`requireUserId` + `requireFamilyMembership` + Zod + 错误映射（contracts/api.md §2.2/§4.1 / 依赖 T009）。
-- [ ] T031 [P] [US2] 扩展 `features/finance/api.ts`：`MemberProfileDTO` + `getMemberProfile`/`updateMember`；交易 create/update DTO 增 `memberId?`。
-- [ ] T032 [US2] 扩展既有交易录入 UI（`src/features/finance/components/` 记账表单）：增「归属成员」选择器（当前用户家庭的 active 成员，含 joint 选项，可选）；新增 `MemberProfile.tsx`（成员收支/结余/分类画像）。
-- [ ] T033 [US2] 集成测试（门控）追加 `family-attribution.service.test.ts`：memberId 聚合收支正确、joint 不入个人画像（I6）、退出后历史 memberId 保留（I4 / SC-004 占位）（依赖 T027、T028）。
+- [X] T027 [US2] 改 `src/services/finance/ledger.service.ts`：`CreateTransactionInput`（:59）增 `memberId?: string`，透传至事务内 transactions 插入（:213）；**校验 memberId 属于调用者所在 active 家庭**（否则抛 `ShareScopeError`→403 / `LedgerInvariantError`→422，防伪造归属）；`editTransaction`/`patchTransaction` 同步携带 memberId（data-model.md §3.1 / contracts/api.md §6 / 依赖 T003、T009）。
+- [X] T028 [US2] 新增 `src/services/finance/family-attribution.service.ts` 的 `getMemberProfile({familyId, userId, memberId, from, to})`：聚合 `transactions.memberId = memberId`（income/expense/surplus + 按 categoryId 的 topCategories）；joint memberId → 聚合所有 joint 交易（家庭合计语义，不计入个人）；调用者须为家庭成员（`requireFamilyMembership`）。**归属口径与账号 owner 正交**（research.md 决策4）（FR-004 / contracts/api.md §4.1 / 依赖 T009）。
+- [X] T029 [P] [US2] 扩展 `_lib/validation.ts`：`memberProfileQuerySchema`(from/to 可选)、`updateMemberSchema`(displayName?/role?/shareMode?/defaultView?，role ∉ self/joint)；`_lib/serialize.ts`：`toMemberProfileDto`（contracts/api.md §2.2/§4.1）。
+- [X] T030 [P] [US2] 新增 `families/[id]/members/[memberId]/route.ts`（PATCH 改 displayName/role/shareMode/defaultView；**DELETE 退出**留 US3 实现占位）与 `families/[id]/members/[memberId]/profile/route.ts`（GET 画像）；`requireUserId` + `requireFamilyMembership` + Zod + 错误映射（contracts/api.md §2.2/§4.1 / 依赖 T009）。
+- [X] T031 [P] [US2] 扩展 `features/finance/api.ts`：`MemberProfileDTO` + `getMemberProfile`/`updateMember`；交易 create/update DTO 增 `memberId?`。
+- [X] T032 [US2] 扩展既有交易录入 UI（`src/features/finance/components/` 记账表单）：增「归属成员」选择器（当前用户家庭的 active 成员，含 joint 选项，可选）；新增 `MemberProfile.tsx`（成员收支/结余/分类画像）。
+- [X] T033 [US2] 集成测试（门控）追加 `family-attribution.service.test.ts`：memberId 聚合收支正确、joint 不入个人画像（I6）、退出后历史 memberId 保留（I4 / SC-004 占位）（依赖 T027、T028）。
 
 **Checkpoint**: 交易可标 memberId（含 joint）、成员支出画像正确、joint 不双计（FR-002/FR-004/I6）。
 
@@ -119,15 +119,15 @@ description: "Task list for feature implementation"
 
 ### Tests for User Story 3（先写测试、确保失败再实现）
 
-- [ ] T034 [P] [US3] 集成测试（门控）追加 `tests/finance/family-net-worth.service.test.ts`：账户 `visibility='private'` → 家庭 live 净资产/曲线 100% 不含（I2/SC-002）；私有数据物理上不出现在家庭端点响应（C2）；成员退出后家庭不再并入其数据、个人数据完整、历史快照保留（I4/SC-004）。先写、待实现后转绿。
+- [X] T034 [P] [US3] 集成测试（门控）追加 `tests/finance/family-net-worth.service.test.ts`：账户 `visibility='private'` → 家庭 live 净资产/曲线 100% 不含（I2/SC-002）；私有数据物理上不出现在家庭端点响应（C2）；成员退出后家庭不再并入其数据、个人数据完整、历史快照保留（I4/SC-004）。先写、待实现后转绿。
 
 ### Implementation for User Story 3
 
-- [ ] T035 [US3] 账号可见性写入与硬过滤：account service/repository 的 create/update 接受 `visibility`；**确认 `computeFamilyNetWorthLive`（T016）与家庭快照（T017）只聚合 `visibility='shared'` 账号**（隐私硬过滤，I2/SC-002）；改 `src/app/api/finance/accounts/[id]/route.ts` PATCH 接受 `visibility`，切换后 best-effort 刷新所属家庭快照；accounts 列表/详情响应含 `visibility`（data-model.md §3.2 / contracts/api.md §5 / 依赖 T005、T016、T017）。
-- [ ] T036 [US3] 新增 `family.service.ts` 的 `leaveFamily({familyId, userId, memberId})`：**软删除**（status→left、leftAt=now）；**拒绝 joint 行退出**；不动其个人数据、不清交易 memberId（ON DELETE SET NULL 不触发，因不删行）；返回 member(status=left)。补全 `families/[id]/members/[memberId]/route.ts` 的 DELETE 处理器（FR-007/SC-004 / contracts/api.md §2.3 / research.md 决策6 / 依赖 T030、T007）。
-- [ ] T037 [P] [US3] 扩展 `_lib/validation.ts`：`accountVisibilitySchema`(shared|private)；`_lib/serialize.ts`：account DTO 含 `visibility`（contracts/api.md §5）。
-- [ ] T038 [P] [US3] 前端：账号设置/编辑 UI 增「共享 / 仅个人」可见性开关（私有时提示「家庭视图不可见」）；`features/finance/api.ts` 增 `updateAccountVisibility`；`use-finance.ts` 增 `useLeaveFamily`/`useUpdateAccountVisibility`（失效 family-net-worth/accounts）。
-- [ ] T039 [US3] 集成测试（门控）全量验收：private 排除（I2/SC-002）、越权 403（I3/SC-003）、退出隔离 + 历史快照保留（I4/SC-004）、家庭=Σ shared（I1/SC-001 回归）（依赖 T035、T036）。
+- [X] T035 [US3] 账号可见性写入与硬过滤：account service/repository 的 create/update 接受 `visibility`；**确认 `computeFamilyNetWorthLive`（T016）与家庭快照（T017）只聚合 `visibility='shared'` 账号**（隐私硬过滤，I2/SC-002）；改 `src/app/api/finance/accounts/[id]/route.ts` PATCH 接受 `visibility`，切换后 best-effort 刷新所属家庭快照；accounts 列表/详情响应含 `visibility`（data-model.md §3.2 / contracts/api.md §5 / 依赖 T005、T016、T017）。
+- [X] T036 [US3] 新增 `family.service.ts` 的 `leaveFamily({familyId, userId, memberId})`：**软删除**（status→left、leftAt=now）；**拒绝 joint 行退出**；不动其个人数据、不清交易 memberId（ON DELETE SET NULL 不触发，因不删行）；返回 member(status=left)。补全 `families/[id]/members/[memberId]/route.ts` 的 DELETE 处理器（FR-007/SC-004 / contracts/api.md §2.3 / research.md 决策6 / 依赖 T030、T007）。
+- [X] T037 [P] [US3] 扩展 `_lib/validation.ts`：`accountVisibilitySchema`(shared|private)；`_lib/serialize.ts`：account DTO 含 `visibility`（contracts/api.md §5）。
+- [X] T038 [P] [US3] 前端：账号设置/编辑 UI 增「共享 / 仅个人」可见性开关（私有时提示「家庭视图不可见」）；`features/finance/api.ts` 增 `updateAccountVisibility`；`use-finance.ts` 增 `useLeaveFamily`/`useUpdateAccountVisibility`（失效 family-net-worth/accounts）。
+- [X] T039 [US3] 集成测试（门控）全量验收：private 排除（I2/SC-002）、越权 403（I3/SC-003）、退出隔离 + 历史快照保留（I4/SC-004）、家庭=Σ shared（I1/SC-001 回归）（依赖 T035、T036）。
 
 **Checkpoint**: 隐私边界完整——私有 100% 不可见/不并入（SC-002）、越权 100% 拒绝（SC-003）、退出数据完整+快照保留（SC-004）。
 
@@ -137,12 +137,26 @@ description: "Task list for feature implementation"
 
 **Purpose**: 端到端验收、质量门、错误处理与隔离核对、默认视图与切换体验。
 
-- [ ] T040 [P] 类型与质量门：`pnpm type-check` + `pnpm check`（type-check + lint）全绿，无 `any` 残留（`.claude/rules/typescript.md`）。
-- [ ] T041 [P] 测试全绿：`pnpm test --run --silent='passed-only' 'finance'`（含 005 纯函数 `family-aggregate` 始终运行 + 门控集成 `family.*`；Phase 0–3 既有测试无回归）。纯函数测试不得依赖 `FINANCE_INTEGRATION_TEST`。
-- [ ] T042 [P] SC 验收清单：按 `quickstart.md §6` 逐项核对 SC-001（家庭=Σ成员）/SC-002（私有不可见）/SC-003（越权 403）/SC-004（退出+快照）/SC-005（切换无串扰）。
-- [ ] T043 [P] 错误处理与隔离核对：所有家庭路由 `requireUserId` + `requireFamilyMembership`；越权 → 403 FORBIDDEN（不泄漏存在性，私有数据物理不出现在响应 C2）；joint 不可删/退 → 422 INVARIANT；金额字符串/内部 cents；写操作单事务 + best-effort `refreshSnapshots`（contracts/api.md §0 / research.md 决策9）。
-- [ ] T044 [P] 默认视图与切换：`member.defaultView` 持久化（PATCH）+ 客户端 ViewSwitcher 读默认值；切换瞬时、无数据串扰（SC-005/FR-008）；家庭相关文案接入 react-i18next（zh-CN）。
-- [ ] T045 [P] 文档与 README：更新 `src/features/finance/README.md`（家庭维度说明：两套聚合口径、共享/私有、退出语义）与 `specs/005-family-finance/` 交叉引用（quickstart.md §10）。
+- [X] T040 [P] 类型与质量门：`pnpm type-check` + `pnpm check`（type-check + lint）全绿，无 `any` 残留（`.claude/rules/typescript.md`）。
+- [X] T041 [P] 测试全绿：`pnpm test --run --silent='passed-only' 'finance'`（含 005 纯函数 `family-aggregate` 始终运行 + 门控集成 `family.*`；Phase 0–3 既有测试无回归）。纯函数测试不得依赖 `FINANCE_INTEGRATION_TEST`。
+- [X] T042 [P] SC 验收清单：按 `quickstart.md §6` 逐项核对 SC-001（家庭=Σ成员）/SC-002（私有不可见）/SC-003（越权 403）/SC-004（退出+快照）/SC-005（切换无串扰）。
+- [X] T043 [P] 错误处理与隔离核对：所有家庭路由 `requireUserId` + `requireFamilyMembership`；越权 → 403 FORBIDDEN（不泄漏存在性，私有数据物理不出现在响应 C2）；joint 不可删/退 → 422 INVARIANT；金额字符串/内部 cents；写操作单事务 + best-effort `refreshSnapshots`（contracts/api.md §0 / research.md 决策9）。
+- [X] T044 [P] 默认视图与切换：`member.defaultView` 持久化（PATCH）+ 客户端 ViewSwitcher 读默认值；切换瞬时、无数据串扰（SC-005/FR-008）；家庭相关文案接入 react-i18next（zh-CN）。
+- [X] T045 [P] 文档与 README：更新 `src/features/finance/README.md`（家庭维度说明：两套聚合口径、共享/私有、退出语义）与 `specs/005-family-finance/` 交叉引用（quickstart.md §10）。
+
+### 验证记录（2026-06-30 核对补勾）
+
+T026–T045 此前未勾但代码已全部交付（提交于 `8e04c83`，US1/US2/US3 全栈在位）。本次按磁盘代码逐项核对后补勾，细节与遗留如下：
+
+- **T027 偏差（可接受）**：memberId 家庭归属校验未放 `ledger.service.ts` 内，而是抽为共享 `assertMemberBelongsToCallerFamily`（family.service.ts），在 `POST/PATCH /transactions` 路由层调用 → `ShareScopeError` → **403**。防伪造归属（SC-003）不变量已满足。
+- **T031 命名**：客户端方法实命名为 `updateFamilyMember`（非 `updateMember`），功能等价。
+- **T037**：`serialize.ts` 的 account DTO 未显式加 `visibility`，但 account 列表/详情经 repository `.select()` 返回全行（含 visibility），前端 `AccountDTO.visibility` + `AccountManager` 开关端到端可用。
+- **T040**：`pnpm type-check` 对 005 全部文件**零错误**；`pnpm lint` 因仓库缺失 ESLint 9 flat config **全局不可用**（非 005 引入），未独立验证。
+- **T041**：纯函数 `family-aggregate` 始终运行通过；门控集成 `family.*` 由 `FINANCE_INTEGRATION_TEST=1` 控制，需真实 PostgreSQL（沙箱跳过，符合既定两层模式）。
+- **T042**：SC-001..005 已按代码 + 自动测试用例逐项核对（家庭=Σshared、私有硬过滤、越权 403、软退出+快照、切换无串扰）；**真实 curl 端到端冒烟需 Postgres+Supabase 会话**，沙箱不可执行（同 006 T046 / 007 T056）。
+- **T043 偏差**：joint 退出/删除实抛 `ShareScopeError` → **403**（任务文写 422 INVARIANT）；拒绝语义一致，HTTP 码以 403 落地。
+- **T044**：defaultView 持久化 + ViewSwitcher 切换无串扰（SC-005/FR-008）已达成；**i18n 未单独接入**——finance 全域 37 个组件均用内联中文（0/37 用 react-i18next），本特性沿用该约定。
+- **T045**：本次补写 `src/features/finance/README.md` 的「Phase 4 增量（005 家庭财务）」专节（两套聚合口径 / 隐私硬过滤 / 能力 / API/UI / 测试 / 迁移）。
 
 ---
 

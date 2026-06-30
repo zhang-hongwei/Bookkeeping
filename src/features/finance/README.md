@@ -117,6 +117,64 @@ node --env-file=.env scripts/init-finance.mjs   # 建 finance_* 表 + 种子权�
 **隔离**：所有 `/assets`、`/liabilities`（含 `[id]/revalue|dispose|repay|billing`）路由经 `requireUserId`，
 service 层 `fetchAssetAccount`/`fetchLiabilityAccount`/`recordRepayment` 全部按 `userId` 作用域，越权视为不存在。
 
+## Phase 4 增量（005 家庭财务：家庭合并净资产 / 成员归属 / 隐私边界）
+
+在 Phase 0–2 个人财务模型之上新增**家庭维度**：多成员家庭合并净资产、按成员归属的收支画像、
+账户级共享/私有可见性与成员退出语义。设计依据 `specs/005-family-finance/`（plan/research/data-model/contracts/quickstart）。
+
+### 两套正交聚合口径（research.md 决策4，去重与隐私根基）
+
+- **净资产按账号 `userId`(owner) 聚合**：家庭净资产 = Σ 各成员「共享账号」净资产（`sumMemberNetWorth` 纯函数求和，I1/SC-001）。
+- **收支画像按交易 `memberId` 聚合**：谁花/谁赚，含 `joint`（共同，计入家庭合计、不入个人画像，I6）。
+- 两者正交、不可混淆——这是可加性（SC-001）与零双计的构造性保证。
+
+### 隐私硬过滤（I2/SC-002，由构造保证）
+
+家庭聚合**只读 `visibility='shared'` 账号**（`computeFamilyNetWorthLive` 内 `eq(financeAccounts.visibility, 'shared')`）；
+私有账号（私房钱）由构造排除，物理上不出现在家庭端点响应（C2）——无需事后过滤。
+
+### 能力
+
+- **家庭/成员管理**（`family.service`，US1/FR-001/003）：建家庭（单事务写 family + `self` + `joint` 成员，决策1/5）、
+  邀请/预占成员、一人一 active 家庭、解散（成员软退出、历史快照保留）。
+- **合并净资产 + 曲线**（`family-net-worth.service`，US1/FR-008/009）：逐成员 shared 账号 → `computeNetWorthFromAccounts` →
+  `sumMemberNetWorth` 聚合 + `memberBreakdown`；家庭曲线由 `finance_family_net_worth_snapshots` 驱动（缺失回填）。
+- **成员收支画像**（`family-attribution.service`，US2/FR-002/004）：按 `memberId` 聚合 income/expense/surplus + 支出分类 Top5；
+  `joint` = 共同合计语义。
+- **隐私/退出**（US3/FR-005/006/007）：账户 `visibility=private` 家庭不可见；`leaveFamily` 软删除（status→left、leftAt），
+  拒绝 joint 退出，不动个人数据、不清交易 memberId（I4/SC-004）。
+
+### 关键约定
+
+- **鉴权隔离**（I3/SC-003，决策9）：所有带 `[familyId]` 的路由经 `requireUserId` + `requireFamilyMembership`；
+  非成员/越权 → `ShareScopeError` → **403 FORBIDDEN**（不泄漏存在性）；记账伪造他人家庭 memberId → `assertMemberBelongsToCallerFamily` 拒绝（403）。
+- **joint 不可退/删**：`leaveFamily` 对 joint 抛 `ShareScopeError`。
+- **快照钩子 best-effort**：个人 `refreshSnapshots` 后顺刷所属家庭快照（try/catch，不阻塞记账）。
+- **`family.repository` 不继承 `FinanceRepository`**（单 userId 绑定与多成员聚合冲突），独立用 `db`。
+
+### API / UI
+
+`/families[[/id]|/id/members|/id/net-worth|/id/net-worth/curve|/id/members/[memberId]|/id/members/[memberId]/profile]`；
+记账 `POST/PATCH /transactions` 增 `memberId?`（路由层校验归属）；账户 PATCH 增 `visibility`。
+UI 组件 `FamilySetup` / `FamilyDashboard`（合并净资产 + memberBreakdown + 曲线）/ `ViewSwitcher`（个人/家庭切换，SC-005 无串扰）/
+`MemberProfile` / 账户可见性开关（`AccountManager`）/ 记账表单「归属成员」选择器（`TransactionForm`）。
+
+### 测试
+
+```bash
+# 纯函数（始终运行，不依赖 FINANCE_INTEGRATION_TEST）
+pnpm test --run --silent='passed-only' 'tests/finance/family-aggregate.test.ts'
+
+# 服务层集成（门控 FINANCE_INTEGRATION_TEST=1，需真实 PostgreSQL）
+pnpm test --run --silent='passed-only' 'tests/finance/family'
+```
+
+覆盖 I1（家庭=Σ成员）/I2（私有排除）/I3（越权 403）/I4（退出+历史保留）/I5（按 memberId 不重复）/I6（joint 不入个人）
++ SC-001..SC-005。
+
+> 迁移：3 张新表（`finance_families` / `finance_family_members` / `finance_family_net_worth_snapshots`）+ 2 改列
+>（`transactions.member_id`、`accounts.visibility`），见 `src/database/migrations/0003_family_finance.sql`。
+
 ## Phase 6 增量（007 AI 财富顾问：预测 / 预警 / 顾问 / 审批 / 趋势）
 
 在 Phase 0–4 完整个人财务模型与规则引擎之上，把顾问从「事后报告」升级为「事前预警 + 个性化对话」。
