@@ -110,6 +110,9 @@ const nonNegativeAmount = moneyString.refine((s) => Number(s) >= 0, {
 /** 账单日/还款日：月内 1–31。 */
 const dayOfMonth = z.number().int().min(1).max(31);
 
+/** 日期字符串 YYYY-MM-DD（与 date 列对齐，拒绝 "2051" 这类非法值）。 */
+const isoDateStr = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '日期格式应为 YYYY-MM-DD');
+
 export const createAssetSchema = z.object({
   name: z.string().min(1).max(100),
   type: z.enum(['real_asset', 'investment']),
@@ -140,7 +143,7 @@ export const createLiabilitySchema = z.object({
   principal: moneyString.optional(),
   interestRate: z.string().nullable().optional(),
   monthlyPayment: z.string().nullable().optional(),
-  dueDate: z.string().nullable().optional(),
+  dueDate: isoDateStr.nullable().optional(),
   statementDay: dayOfMonth.nullable().optional(),
   repaymentDay: dayOfMonth.nullable().optional(),
   currency: z.string().max(8).optional(),
@@ -153,7 +156,7 @@ export const patchLiabilitySchema = z.object({
   includeInNetWorth: z.boolean().optional(),
   interestRate: z.string().nullable().optional(),
   monthlyPayment: z.string().nullable().optional(),
-  dueDate: z.string().nullable().optional(),
+  dueDate: isoDateStr.nullable().optional(),
   statementDay: dayOfMonth.nullable().optional(),
   repaymentDay: dayOfMonth.nullable().optional(),
 });
@@ -515,9 +518,6 @@ const thresholdAmount = z
   .refine((s) => Number.isFinite(Number(s)) && Number(s) >= 0 && Number(s) <= 1, {
     message: '阈值应为 0–1',
   });
-
-/** 日期字符串 YYYY-MM-DD。 */
-const isoDateStr = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '日期格式应为 YYYY-MM-DD');
 
 /** 创建预算：categoryId 可空（总支出预算）；amount>0；periodType 默认 month；阈值默认 0.80。 */
 export const createBudgetSchema = z.object({

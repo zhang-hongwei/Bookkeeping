@@ -36,6 +36,23 @@ export const useNavData = (): NavItem[] => {
 
   return [
     {
+      title: "记账",
+      path: "/finance",
+      icon: <ReceiptOutlined />,
+      children: [
+        { title: "概览", path: "/finance", icon: <BarChartOutlined /> },
+        { title: "净资产", path: "/finance#net-worth", icon: <ShowChartOutlined /> },
+        { title: "账户", path: "/finance#accounts", icon: <AccountBalanceWalletOutlined /> },
+        { title: "记一笔", path: "/finance#record", icon: <AddOutlined /> },
+        { title: "交易明细", path: "/finance#transactions", icon: <ListAltOutlined /> },
+        { title: "批量导入", path: "/finance#import", icon: <FolderOutlined /> },
+        { title: "月报", path: "/finance#report", icon: <ArticleOutlined /> },
+      ],
+    },
+    /* ── 以下为模板自带的演示菜单（App/Banking/Course/User/Booking/Analytics/
+       File Manager/Blog/Invoice/Product/i18n/Theme），与记账 App 无关，暂时注释。
+       恢复方法：删掉本段外层的 /* 和 *​/ 即可。────────────────────────────
+    {
       title: "App",
       path: "/app",
       icon: <BarChartOutlined />,
@@ -44,11 +61,6 @@ export const useNavData = (): NavItem[] => {
       title: "Banking",
       path: "/banking",
       icon: <AccountBalanceWalletOutlined />,
-    },
-    {
-      title: "记账",
-      path: "/finance",
-      icon: <ReceiptOutlined />,
     },
     {
       title: "Course",
@@ -135,5 +147,6 @@ export const useNavData = (): NavItem[] => {
       icon: <BrushOutlined />,
       info: "MUI v7",
     },
+    ──────────────────────────────────────────────────────────────────── */
   ];
 };

@@ -10,15 +10,15 @@ import { useState } from 'react';
 import { Box, Stack, Typography, Button, Grid } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import { AccountManager } from './AccountManager';
-import { AssetManager } from './AssetManager';
-import { LiabilityManager } from './LiabilityManager';
+// [非记账 · 暂时注释] import { AssetManager } from './AssetManager';
+// [非记账 · 暂时注释] import { LiabilityManager } from './LiabilityManager';
 import { TransactionForm } from './TransactionForm';
 import { TransactionList } from './TransactionList';
 import { ImportFlow } from './ImportFlow';
 import { NlRecordInput } from './NlRecordInput';
 import { OcrRecordInput } from './OcrRecordInput';
 import { NetWorthDashboard } from './NetWorthDashboard';
-import { HealthScorePanel } from './HealthScorePanel';
+// [非记账 · 暂时注释] import { HealthScorePanel } from './HealthScorePanel';
 import { MonthlyReport } from './MonthlyReport';
 import { CreateAccountDialog } from './CreateAccountDialog';
 
@@ -37,19 +37,21 @@ export function FinanceDashboard() {
       </Stack>
 
       <Grid container spacing={3}>
-        <Grid size={{ xs: 12 }}>
+        <Grid size={{ xs: 12 }} id="net-worth" sx={{ scrollMarginTop: 80 }}>
           <NetWorthDashboard />
         </Grid>
-        <Grid size={{ xs: 12, md: 4 }}>
+        <Grid size={{ xs: 12, md: 4 }} id="accounts" sx={{ scrollMarginTop: 80 }}>
           <AccountManager />
         </Grid>
+        {/* [非记账 · 投资004/负债] 暂时注释，仅保留记账相关区块
         <Grid size={{ xs: 12, md: 4 }}>
           <AssetManager />
         </Grid>
         <Grid size={{ xs: 12, md: 4 }}>
           <LiabilityManager />
         </Grid>
-        <Grid size={{ xs: 12, md: 4 }}>
+        */}
+        <Grid size={{ xs: 12, md: 4 }} id="record" sx={{ scrollMarginTop: 80 }}>
           <Stack spacing={2}>
             <Box sx={{ p: 2, border: 1, borderColor: 'divider', borderRadius: 2 }}>
               <Typography variant="subtitle1" sx={{ mb: 1.5 }}>
@@ -71,14 +73,14 @@ export function FinanceDashboard() {
             </Box>
           </Stack>
         </Grid>
-        <Grid size={{ xs: 12, md: 4 }}>
+        <Grid size={{ xs: 12, md: 4 }} id="transactions" sx={{ scrollMarginTop: 80 }}>
           <TransactionList />
         </Grid>
       </Grid>
 
       <CreateAccountDialog open={createOpen} onClose={() => setCreateOpen(false)} />
 
-      <Box sx={{ mt: 3, p: 2, border: 1, borderColor: 'divider', borderRadius: 2 }}>
+      <Box id="import" sx={{ mt: 3, p: 2, border: 1, borderColor: 'divider', borderRadius: 2, scrollMarginTop: 80 }}>
         <Typography variant="h6" sx={{ mb: 2 }}>
           批量导入账单
         </Typography>
@@ -86,10 +88,12 @@ export function FinanceDashboard() {
       </Box>
 
       <Grid container spacing={3} sx={{ mt: 1 }}>
+        {/* [非记账 · 分析008] 暂时注释
         <Grid size={{ xs: 12, md: 6 }}>
           <HealthScorePanel />
         </Grid>
-        <Grid size={{ xs: 12, md: 6 }}>
+        */}
+        <Grid size={{ xs: 12 }} id="report" sx={{ scrollMarginTop: 80 }}>
           <MonthlyReport />
         </Grid>
       </Grid>

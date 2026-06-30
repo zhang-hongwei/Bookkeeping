@@ -106,8 +106,9 @@ export function LiabilityManager() {
               onChange={(e) => setForm({ ...form, interestRate: e.target.value })} sx={{ minWidth: 140 }} />
             <TextField size="small" label="月供" value={form.monthlyPayment}
               onChange={(e) => setForm({ ...form, monthlyPayment: e.target.value })} sx={{ minWidth: 120 }} />
-            <TextField size="small" label="到期日" value={form.dueDate}
-              onChange={(e) => setForm({ ...form, dueDate: e.target.value })} sx={{ minWidth: 140 }} />
+            <TextField size="small" label="到期日" type="date" value={form.dueDate}
+              onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
+              InputLabelProps={{ shrink: true }} sx={{ minWidth: 140 }} />
             {form.kind === 'credit' && (
               <>
                 <TextField size="small" label="账单日(1-31)" value={form.statementDay}
